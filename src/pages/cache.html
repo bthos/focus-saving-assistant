@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classification Cache</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/history.css">
+  <link rel="stylesheet" href="../styles/options.css">
+</head>
+<body>
+  <!-- Password Gate Screen -->
+  <div id="passwordGate" class="password-gate">
+    <div class="gate-container">
+      <div class="gate-inscription">
+        <div class="english-text">The Doors of Durin, Lord of Moria</div>
+        <div class="english-text gate-riddle">Speak, friend, and enter</div>
+        <div class="gate-subtitle">I, Narvi, made them. Celebrimbor of Hollin drew these signs.</div>
+      </div>
+      
+      <form id="passwordGateForm" class="password-form" autocomplete="off" novalidate>
+        <input 
+          type="password" 
+          id="passwordInput" 
+          class="password-input" 
+          placeholder="Enter the word..."
+          autocomplete="new-password"
+          spellcheck="false"
+          autofocus
+        />
+        <div class="button-group-enter">
+          <button type="button" id="enterBtn" class="btn-enter">Enter</button>
+        </div>
+        <div id="passwordError" class="password-error"></div>
+        <div id="hintContainer" class="hint-container">
+          <button type="button" id="showHintBtn" class="btn-hint" title="Show hint">?</button>
+          <div id="gateHint" class="gate-hint">
+            <div class="hint-content">
+              <p id="hintText">Enter word "friend"</p>
+              <button type="button" id="closeHintBtn" class="btn-close-hint" title="Close hint">×</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Cache Content -->
+  <div id="mainContent" class="main-content visible">
+  <div class="container">
+    <header>
+      <div>
+        <h1>💾 Classification Cache</h1>
+        <p class="subtitle">View and manage cached AI classification results for visited websites</p>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+        <button id="exportBtn" class="btn btn-primary">Export</button>
+        <button id="clearBtn" class="btn btn-danger">Clear</button>
+      </div>
+    </header>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Search:</label>
+        <input type="text" id="searchInput" placeholder="Domain or URL..." class="input">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filterType">Filter:</label>
+        <select id="filterType" class="select" aria-label="Filter cache entries">
+          <option value="all">All Entries</option>
+          <option value="educational">Educational</option>
+          <option value="non-educational">Non-Educational</option>
+          <option value="expired">Expired</option>
+          <option value="valid">Valid</option>
+        </select>
+      </div>
+      
+      <button id="applyFiltersBtn" class="btn btn-primary">Apply</button>
+      <button id="resetFiltersBtn" class="btn btn-secondary">Reset</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalEntries">0</div>
+        <div class="stat-label">Total Entries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="validEntries">0</div>
+        <div class="stat-label">Valid</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="expiredEntries">0</div>
+        <div class="stat-label">Expired</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="educationalEntries">0</div>
+        <div class="stat-label">Educational</div>
+      </div>
+    </div>
+
+    <div class="history-list" id="cacheList">
+      <div class="loading">Loading cache...</div>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+  </div>
+
+  <script type="module" src="cache.js"></script>
+</body>
+</html>

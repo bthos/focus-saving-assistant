@@ -1,0 +1,123 @@
+/**
+ * Pure settings migration and normalisation (no storage access).
+ * storage.ts reads/writes; this module decides what the stored shape should be.
+ */
+
+import type { Settings } from '../types/index.ts';
+import { DEFAULT_SETTINGS } from './default-settings.ts';
+
+/**
+ * Shallow merge can leave null / wrong types from hand-edited or legacy storage.
+ * Ensures list and timeLimits shapes match what the options UI expects.
+ */
+export function normalizeSettingsShape(merged: Settings): Settings {
+  const out: Settings = { ...merged };
+
+  if (!Array.isArray(out.restrictedPatterns)) {
+    out.restrictedPatterns = [...DEFAULT_SETTINGS.restrictedPatterns];
+  }
+  if (!Array.isArray(out.allowedPatterns)) {
+    out.allowedPatterns = [...DEFAULT_SETTINGS.allowedPatterns];
+  }
+  if (!Array.isArray(out.ignoredPatterns)) {
+    out.ignoredPatterns = [...DEFAULT_SETTINGS.ignoredPatterns];
+  }
+  if (!Array.isArray(out.categoryItems)) {
+    out.categoryItems = [...DEFAULT_SETTINGS.categoryItems];
+  }
+  if (!Array.isArray(out.safetyLevelItems)) {
+    out.safetyLevelItems = [...DEFAULT_SETTINGS.safetyLevelItems];
+  }
+  if (!Array.isArray(out.notificationTypes)) {
+    out.notificationTypes = [...DEFAULT_SETTINGS.notificationTypes];
+  }
+  if (!Array.isArray(out.pageNotificationTypes)) {
+    out.pageNotificationTypes = [...DEFAULT_SETTINGS.pageNotificationTypes];
+  }
+
+  const dtl = DEFAULT_SETTINGS.timeLimits;
+  const tl = out.timeLimits;
+  out.timeLimits = {
+    enabled: typeof tl?.enabled === 'boolean' ? tl.enabled : dtl.enabled,
+    dailyLimitMinutes: typeof tl?.dailyLimitMinutes === 'number' ? tl.dailyLimitMinutes : dtl.dailyLimitMinutes,
+    allowedHours: {
+      start: typeof tl?.allowedHours?.start === 'number' ? tl.allowedHours.start : dtl.allowedHours.start,
+      end: typeof tl?.allowedHours?.end === 'number' ? tl.allowedHours.end : dtl.allowedHours.end,
+    },
+  };
+
+  return out;
+}
+
+/** Migrate legacy available/restricted arrays to categoryItems/safetyLevelItems */
+function migrateToItems(
+  available: string[],
+  restricted: string[]
+): Array<{ name: string; restricted: boolean }> {
+  const seen = new Set<string>();
+  const items: Array<{ name: string; restricted: boolean }> = [];
+  for (const name of [...available, ...restricted]) {
+    const n = name.trim();
+    if (n && !seen.has(n.toLowerCase())) {
+      seen.add(n.toLowerCase());
+      items.push({ name: n, restricted: restricted.some((r) => r.trim().toLowerCase() === n.toLowerCase()) });
+    }
+  }
+  return items;
+}
+
+/**
+ * Derive available/restricted from items for backward compat with ai-classifier, url-matcher
+ */
+function deriveFromItems(items: Array<{ name: string; restricted: boolean }>): {
+  available: string[];
+  restricted: string[];
+} {
+  return {
+    available: items.map((i) => i.name),
+    restricted: items.filter((i) => i.restricted).map((i) => i.name),
+  };
+}
+
+/**
+ * Stored settings -> settings as they should be persisted:
+ * defaults merged in, legacy available/restricted lists turned into items, shapes normalised.
+ */
+export function migrateStoredSettings(stored: Settings): Settings {
+  let merged: Settings = { ...DEFAULT_SETTINGS, ...stored };
+
+  // Migration: legacy availableCategories/restrictedCategories -> categoryItems
+  if (!merged.categoryItems?.length && (merged.availableCategories?.length || merged.restrictedCategories?.length)) {
+    merged = {
+      ...merged,
+      categoryItems: migrateToItems(merged.availableCategories || [], merged.restrictedCategories || []),
+    };
+  }
+  if (!merged.safetyLevelItems?.length && (merged.availableSafetyLevels?.length || merged.restrictedSafetyLevels?.length)) {
+    merged = {
+      ...merged,
+      safetyLevelItems: migrateToItems(merged.availableSafetyLevels || [], merged.restrictedSafetyLevels || []),
+    };
+  }
+
+  return normalizeSettingsShape(merged);
+}
+
+/**
+ * Settings as consumers see them: available/restricted category and safety-level
+ * lists derived from the items (for ai-classifier, url-matcher).
+ */
+export function withDerivedClassificationLists(settings: Settings): Settings {
+  const out: Settings = { ...settings };
+  if (out.categoryItems?.length) {
+    const { available, restricted } = deriveFromItems(out.categoryItems);
+    out.availableCategories = available;
+    out.restrictedCategories = restricted;
+  }
+  if (out.safetyLevelItems?.length) {
+    const { available, restricted } = deriveFromItems(out.safetyLevelItems);
+    out.availableSafetyLevels = available;
+    out.restrictedSafetyLevels = restricted;
+  }
+  return out;
+}

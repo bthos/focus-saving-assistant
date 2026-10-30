@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browsing History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/history.css">
+  <link rel="stylesheet" href="../styles/options.css">
+</head>
+<body>
+  <!-- Password Gate Screen -->
+  <div id="passwordGate" class="password-gate">
+    <div class="gate-container">
+      <div class="gate-inscription">
+        <div class="english-text">The Doors of Durin, Lord of Moria</div>
+        <div class="english-text gate-riddle">Speak, friend, and enter</div>
+        <div class="gate-subtitle">I, Narvi, made them. Celebrimbor of Hollin drew these signs.</div>
+      </div>
+      
+      <form id="passwordGateForm" class="password-form" autocomplete="off" novalidate>
+        <input 
+          type="password" 
+          id="passwordInput" 
+          class="password-input" 
+          placeholder="Enter the word..."
+          autocomplete="new-password"
+          spellcheck="false"
+          autofocus
+        />
+        <div class="button-group-enter">
+          <button type="button" id="enterBtn" class="btn-enter">Enter</button>
+        </div>
+        <div id="passwordError" class="password-error"></div>
+        <div id="hintContainer" class="hint-container">
+          <button type="button" id="showHintBtn" class="btn-hint" title="Show hint">?</button>
+          <div id="gateHint" class="gate-hint">
+            <div class="hint-content">
+              <p id="hintText">Enter word "friend"</p>
+              <button type="button" id="closeHintBtn" class="btn-close-hint" title="Close hint">×</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main History Content -->
+  <div id="mainContent" class="main-content visible">
+  <div class="container">
+    <header>
+      <div>
+        <h1>📊 Browsing History</h1>
+        <p class="subtitle">View browsing history with AI classification and restriction status</p>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+        <button id="exportBtn" class="btn btn-primary">Export</button>
+        <button id="clearBtn" class="btn btn-danger">Clear</button>
+      </div>
+    </header>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label for="searchInput">Search:</label>
+        <input type="text" id="searchInput" placeholder="URL or title..." class="input">
+      </div>
+      
+      <div class="filter-group">
+        <label for="filterType">Filter:</label>
+        <select id="filterType" class="select">
+          <option value="all">All Entries</option>
+          <option value="restricted">Restricted</option>
+          <option value="allowed">Allowed</option>
+          <option value="educational">Educational</option>
+          <option value="non-educational">Non-Educational</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="dateFilter">Date:</label>
+        <input type="date" id="dateFilter" class="input">
+      </div>
+      
+      <button id="applyFiltersBtn" class="btn btn-primary">Apply</button>
+      <button id="resetFiltersBtn" class="btn btn-secondary">Reset</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalVisits">0</div>
+        <div class="stat-label">Total Visits</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="restrictedAttempts">0</div>
+        <div class="stat-label">Restricted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="educationalVisits">0</div>
+        <div class="stat-label">Educational</div>
+      </div>
+    </div>
+
+    <div class="history-list" id="historyList">
+      <div class="loading">Loading history...</div>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+  </div>
+
+  <script type="module" src="history.js"></script>
+</body>
+</html>
