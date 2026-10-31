@@ -679,7 +679,7 @@ function updateProviderHelpText(provider: string): void {
       tokenHelpText.textContent = 'Get API key at https://openrouter.ai/keys. OpenRouter supports many models including GPT-4, Claude, Gemini, Llama, and more.';
     }
     if (tokenInput) {
-      tokenInput.placeholder = 'sk-or-v1-xxxxxxxxxxxx';
+      tokenInput.placeholder = 'Paste your OpenRouter API key';
     }
   } else {
     if (providerHelpText) {
