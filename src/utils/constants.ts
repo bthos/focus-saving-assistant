@@ -27,7 +27,6 @@ export const MESSAGE_TYPES = {
   RELOAD_RULES: 'reloadRules',
   SYNC_HISTORY: 'syncHistory',
   CHECK_RESTRICTED: 'checkRestricted',
-  PAGE_METADATA: 'pageMetadata',
 } as const;
 
 export const ALARM_NAMES = {

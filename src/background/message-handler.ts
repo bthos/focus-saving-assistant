@@ -46,11 +46,6 @@ export function setupMessageHandlers(): void {
       return true; // Async response
     }
 
-    if (message.type === MESSAGE_TYPES.PAGE_METADATA) {
-      // Save page metadata for use in classification
-      return false;
-    }
-
     return false;
   });
 }

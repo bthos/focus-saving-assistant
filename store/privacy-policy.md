@@ -97,7 +97,7 @@ If the extension's data handling changes, this policy will be updated and the ef
 
 ---
 
-## Evidence (verified against code, v1.0.52)
+## Evidence (verified against code, v1.0.53)
 
 | Statement | Source |
 |---|---|
@@ -111,9 +111,9 @@ If the extension's data handling changes, this policy will be updated and the ef
 | Telegram only with token + chat id | `src/utils/telegram-notifier.ts:166-169,307-310` |
 | Telegram command polling restricted to configured chat | `src/background/telegram-commands.ts:296-300,346-358` |
 | Sole network targets | all `fetch(` calls: `src/utils/ai-classifier.ts`, `src/utils/telegram-notifier.ts`, `src/background/telegram-commands.ts`, `src/pages/options.ts:29,45`, `src/pages/utils/ai-models-handler.ts:31,45`, `src/pages/utils/telegram-handler.ts:35,127`. No other host. |
-| Page metadata not stored/sent | `src/content/content-script.ts:51-72`; `src/background/message-handler.ts:49-52` |
+| No page content read | single content script `src/content/restriction-overlay.ts`; `src/manifest.json:25-30` |
 | Google Fonts | `src/pages/options.html:7-9`, `history.html:7-9`, `cache.html:7-9`, `system-logs.html:7-9` |
-| Incognito split | `src/manifest.json:49` |
+| Incognito split | `src/manifest.json:45` |
 | Limits: 10,000 history, 100 logs | `src/utils/constants.ts:6-7` |
 | Clear buttons | `src/pages/history.ts:342-344`; `src/pages/cache.ts:355-357`; `src/pages/system-logs.html:60`; Telegram `/clear_cache`: `src/pages/options.html:281`, `src/background/telegram-commands.ts:184` |
 | Password plain text | `src/core/default-settings.ts:34`; `src/pages/utils/password-gate.ts:14` |

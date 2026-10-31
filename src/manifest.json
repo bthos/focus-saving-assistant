@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Focus Saving Assistant",
-  "version": "1.0.52",
+  "version": "1.0.53",
   "description": "Focus saving extension: help you stay focused, organize your browsing, and discover educational content",
   "permissions": [
     "webNavigation",
@@ -23,10 +23,6 @@
     "service_worker": "background/service-worker.js"
   },
   "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content/content-script.js"],
-    "run_at": "document_idle"
-  }, {
     "matches": ["<all_urls>"],
     "js": ["content/restriction-overlay.js"],
     "css": ["styles/restriction-overlay.css"],

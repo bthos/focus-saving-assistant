@@ -2,7 +2,7 @@
 
 Answers for the **Privacy practices** tab. Structure per https://developer.chrome.com/docs/webstore/cws-dashboard-privacy (checked 2026-10-30): single purpose, permission justifications, remote code, data usage (collection checkboxes + Limited Use certification), privacy policy URL. Policy basis: https://developer.chrome.com/docs/webstore/program-policies/limited-use and https://developer.chrome.com/docs/webstore/program-policies/user-data-faq.
 
-Manifest basis: `src/manifest.json` v1.0.52. Every permission and host permission in the manifest has an entry below (8 permissions + 4 host patterns).
+Manifest basis: `src/manifest.json` v1.0.53. Every permission and host permission in the manifest has an entry below (8 permissions + 4 host patterns).
 
 ## 1. Single purpose description
 
@@ -27,13 +27,13 @@ Manifest basis: `src/manifest.json` v1.0.52. Every permission and host permissio
 
 | Host pattern | Justification (paste) | Evidence |
 |---|---|---|
-| `<all_urls>` | The user's allow/restrict lists can contain any website, so URL checks, redirects and the block overlay must work on every site. Two content scripts run on all pages: one shows the "restricted" overlay on blocked pages; one reads the page's title/description/keywords/Open Graph tags and sends them to the extension's own background worker (that message is currently ignored, not stored or transmitted: `src/background/message-handler.ts:49-52`). | `src/manifest.json:25-34`, `src/content/restriction-overlay.ts`, `src/content/content-script.ts:13-73` |
+| `<all_urls>` | The user's allow/restrict lists can contain any website, so URL checks, redirects and the block overlay must work on every site. One content script runs on all pages: it shows the "restricted" overlay on blocked pages. It reads no page text or metadata; it sends only the page URL to the extension's own background worker to check it against the user's lists. | `src/manifest.json:25-30`, `src/content/restriction-overlay.ts:206-209` |
 
 ## 3. Remote code
 
 **No, I am not using remote code.**
 
-Basis: the extension loads only packaged scripts (`src/manifest.json:22-34`); it calls `fetch()` for JSON data only (hosts above); `grep -nE "eval\(|new Function" src/` returns no matches. Note: four extension pages (options, history, cache, system-logs: `src/pages/*.html:7-9`) link Google Fonts CSS - a remote *stylesheet*, not code, but a third-party request.
+Basis: the extension loads only packaged scripts (`src/manifest.json:22-30`); it calls `fetch()` for JSON data only (hosts above); `grep -nE "eval\(|new Function" src/` returns no matches. Note: four extension pages (options, history, cache, system-logs: `src/pages/*.html:7-9`) link Google Fonts CSS - a remote *stylesheet*, not code, but a third-party request.
 
 ## 4. Data usage - collection disclosure
 
@@ -51,7 +51,7 @@ Category names as listed in a secondary source (https://moderok.dev/blog/chrome-
 | Location | No | No geolocation or IP lookup in code. |
 | Web history | No | URL, title, visit time and transition type stored locally (`src/utils/history-sync.ts:39-72`, `src/background/navigation-handler.ts:288-297`); URL and title sent to the AI provider and to Telegram. |
 | User activity | No | No click/scroll/keystroke capture. Navigation events are covered by Web history. |
-| Website content | No | Content script reads title/description/keywords/OG tags (`src/content/content-script.ts:17-49`) but the background handler discards them (`src/background/message-handler.ts:49-52`); only URL + title (from `tab.title`) are sent to the AI. **Re-check if message-handler changes.** |
+| Website content | No | The only content script (`src/content/restriction-overlay.ts`) reads no page text or metadata; only URL + title (from `tab.title`: `src/background/navigation-handler.ts:199,230`) are sent to the AI. **Re-check if a content script is added to `src/manifest.json`.** |
 
 ## 5. Limited Use certification
 
