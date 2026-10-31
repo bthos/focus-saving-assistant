@@ -5,24 +5,20 @@
 import { initPasswordGate } from './utils/password-gate.js';
 import { whenDocumentReady } from './utils/document-ready.js';
 import { setupRefreshButton } from './utils/refresh-button.js';
+import type { ClassificationResult } from '../types/index.js';
+import {
+  PROBABILITY_TITLE,
+  SYNTHESIZED_REASON_NOTE,
+  describeDecisionModel,
+  describeExplanationModel,
+  describeMissingSuggestion,
+  formatProbabilityAnswer,
+  isSynthesizedReason,
+} from '../core/classification-details.ts';
 
 interface CacheEntry {
   domain: string;
-  classification: {
-    isEducational?: boolean | null;
-    category: string;
-    reason: string;
-    isAgeAppropriate?: boolean | null;
-    safetyLevel?: string | null;
-    suggestedUrl?: string | null;
-    noUrlReason?: string | null;
-    model?: string;
-    cachedAt?: number;
-    // Legacy fields for backward compatibility
-    educational?: boolean | null;
-    ageAppropriate?: boolean | null;
-    suggestedEducationalResource?: string | null;
-  };
+  classification: ClassificationResult;
   isValid: boolean;
   ageHours: number;
 }
@@ -204,7 +200,9 @@ function renderCache(): void {
             <span class="item-date">Age: ${ageText}</span>
             ${entry.classification.category ? 
               `<span class="item-category">${escapeHtml(entry.classification.category)}</span>` : ''}
-            ${entry.classification.model ? 
+            ${entry.classification.source === 'decision' ?
+              `<span class="item-category">Decision model: ${escapeHtml(describeDecisionModel(entry.classification) ?? '')}</span>` :
+              entry.classification.model ?
               `<span class="item-category">Model: ${escapeHtml(entry.classification.model)}</span>` : ''}
           </div>
         </div>
@@ -212,12 +210,17 @@ function renderCache(): void {
         <!-- Classification Details Section -->
         ${hasClassification && entry.classification ? (() => {
           const classification = entry.classification;
+          const isDecision = classification.source === 'decision';
+          const probabilities = isDecision ? classification.decision?.probabilities : undefined;
           const isEducational = classification.isEducational ?? classification.educational ?? null;
           const isAgeAppropriate = classification.isAgeAppropriate ?? classification.ageAppropriate ?? null;
+          const educationalProbability = formatProbabilityAnswer(probabilities?.isEducational, classification.decision?.model);
+          const ageProbability = formatProbabilityAnswer(probabilities?.isAgeAppropriate, classification.decision?.model);
           const suggestedUrl = classification.suggestedUrl ?? classification.suggestedEducationalResource ?? null;
-          const noUrlReason = classification.noUrlReason || null;
+          const decisionModel = describeDecisionModel(classification);
+          const explanationModel = describeExplanationModel(classification, Date.now());
           const modelName = classification.model || null;
-          const detailsTitle = modelName 
+          const detailsTitle = modelName && !isDecision
             ? `Classification Details (${escapeHtml(modelName)})`
             : 'Classification Details';
           return `
@@ -228,8 +231,8 @@ function renderCache(): void {
             <div class="details-content">
               <div class="detail-item">
                 <span class="detail-label">Educational:</span>
-                <span class="detail-value ${isEducational === true ? 'detail-positive' : isEducational === false ? 'detail-negative' : ''}">
-                  ${isEducational === true ? 'Yes' : isEducational === false ? 'No' : 'Unknown'}
+                <span class="detail-value ${isEducational === true ? 'detail-positive' : isEducational === false ? 'detail-negative' : ''}"${educationalProbability ? ` title="${PROBABILITY_TITLE}"` : ''}>
+                  ${educationalProbability ?? (isEducational === true ? 'Yes' : isEducational === false ? 'No' : 'Unknown')}
                 </span>
               </div>
               ${suggestedUrl ? `
@@ -242,7 +245,7 @@ function renderCache(): void {
               ` : `
                 <div class="detail-item detail-item-full">
                   <span class="detail-label">Suggested Educational Resource:</span>
-                  <span class="detail-value">Not specified${noUrlReason ? ` (${escapeHtml(noUrlReason)})` : ''}</span>
+                  <span class="detail-value">${escapeHtml(describeMissingSuggestion(classification, Date.now()))}</span>
                 </div>
               `}
               <div class="detail-item">
@@ -251,8 +254,8 @@ function renderCache(): void {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Age Appropriate:</span>
-                <span class="detail-value ${isAgeAppropriate === true ? 'detail-positive' : isAgeAppropriate === false ? 'detail-negative' : ''}">
-                  ${isAgeAppropriate === true ? 'Yes' : isAgeAppropriate === false ? 'No' : 'Not specified'}
+                <span class="detail-value ${isAgeAppropriate === true ? 'detail-positive' : isAgeAppropriate === false ? 'detail-negative' : ''}"${ageProbability ? ` title="${PROBABILITY_TITLE}"` : ''}>
+                  ${ageProbability ?? (isAgeAppropriate === true ? 'Yes' : isAgeAppropriate === false ? 'No' : 'Not specified')}
                 </span>
               </div>
               <div class="detail-item">
@@ -261,8 +264,20 @@ function renderCache(): void {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Reason:</span>
-                <span class="detail-value">${escapeHtml(classification.reason || 'Not specified')}</span>
+                <span class="detail-value">${escapeHtml(classification.reason || 'Not specified')}${isSynthesizedReason(classification) ? `<span class="detail-note">${SYNTHESIZED_REASON_NOTE}</span>` : ''}</span>
               </div>
+              ${decisionModel ? `
+              <div class="detail-item">
+                <span class="detail-label">Decision model:</span>
+                <span class="detail-value">${escapeHtml(decisionModel)}</span>
+              </div>
+              ` : ''}
+              ${explanationModel ? `
+              <div class="detail-item">
+                <span class="detail-label">Explanation model:</span>
+                <span class="detail-value ${explanationModel.failed ? 'detail-negative' : ''}">${escapeHtml(explanationModel.text)}</span>
+              </div>
+              ` : ''}
             </div>
           </div>
         `;

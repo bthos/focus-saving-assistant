@@ -4,6 +4,7 @@
 
 import { Settings, UrlCheckResult, ClassificationResult } from '../types';
 import { matchesPattern } from '../core/pattern-matcher.ts';
+import { matchesContentRestrictions } from '../core/content-restrictions.ts';
 import { getCachedClassification } from './storage';
 
 /**
@@ -37,41 +38,6 @@ export function isIgnored(url: string, ignoredPatterns: string[]): boolean {
   }
   
   return ignoredPatterns.some(pattern => matchesPattern(url, pattern));
-}
-
-/**
- * Checks if classification matches Content Restrictions (categories and safety levels)
- */
-function matchesContentRestrictions(
-  classification: ClassificationResult | null | undefined,
-  restrictedCategories: string[],
-  restrictedSafetyLevels: string[]
-): boolean {
-  if (!classification) {
-    return false;
-  }
-
-  // Check if category is restricted (exact match - model returns only from predefined list)
-  if (restrictedCategories && restrictedCategories.length > 0) {
-    const category = (classification.category || '').trim().toLowerCase();
-    if (category && restrictedCategories.some(restrictedCat =>
-      restrictedCat.trim().toLowerCase() === category
-    )) {
-      return true;
-    }
-  }
-
-  // Check if safety level is restricted (exact match - model returns only from predefined list)
-  if (restrictedSafetyLevels && restrictedSafetyLevels.length > 0) {
-    const safetyLevel = (classification.safetyLevel || '').trim().toLowerCase();
-    if (safetyLevel && restrictedSafetyLevels.some(restrictedLevel =>
-      restrictedLevel.trim().toLowerCase() === safetyLevel
-    )) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 /**

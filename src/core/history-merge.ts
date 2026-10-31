@@ -2,7 +2,7 @@
  * Pure history merge logic (no storage access).
  */
 
-import type { HistoryEntry, VisitInfo } from '../types/index.ts';
+import type { ClassificationResult, HistoryEntry, VisitInfo } from '../types/index.ts';
 
 /** Entry as passed to addHistoryEntry: id is assigned here, timestamp defaults to "now". */
 export type NewHistoryEntry = Omit<HistoryEntry, 'id' | 'timestamp'> & { timestamp?: number };
@@ -128,4 +128,12 @@ export function upsertHistoryEntry(
     timestamp: timestamp
   };
   return { history: [newEntry, ...history], entry: newEntry };
+}
+
+export function patchHistoryClassification(history: HistoryEntry[], url: string, classification: ClassificationResult): HistoryEntry[] {
+  const i = history.findIndex((e) => e.url === url);
+  if (i < 0) return history;
+  const copy = history.slice();
+  copy[i] = { ...history[i], classification };
+  return copy;
 }

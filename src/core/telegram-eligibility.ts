@@ -22,3 +22,28 @@ export function isTelegramTypeEligible(
     settings.notificationTypes.includes(type)
   );
 }
+
+type RestrictedNotifySettings = Pick<
+  Settings,
+  'enableTelegramNotifications' | 'telegramBotToken' | 'telegramChatId' | 'notificationTypes' | 'pageNotificationTypes'
+>;
+
+export type RestrictedNotifyBlocker = 'disabled' | 'type-off' | 'page-type-off' | 'not-configured';
+
+/**
+ * First reason a restricted-site notice may not be sent, or null when it may (the guards of the
+ * pre-two-stage notifyRestrictedSite, in the same order). A whitespace-only token counts as present.
+ */
+export function getRestrictedNotifyBlocker(settings: RestrictedNotifySettings): RestrictedNotifyBlocker | null {
+  if (!settings.enableTelegramNotifications) return 'disabled';
+  const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
+  if (!notificationTypes.includes('restricted')) return 'type-off';
+  const pageNotificationTypes = settings.pageNotificationTypes || ['restricted', 'nonEducational'];
+  if (!pageNotificationTypes.includes('restricted')) return 'page-type-off';
+  if (!settings.telegramBotToken || !settings.telegramChatId) return 'not-configured';
+  return null;
+}
+
+export function isRestrictedSiteNotifyEligible(settings: RestrictedNotifySettings): boolean {
+  return getRestrictedNotifyBlocker(settings) === null;
+}

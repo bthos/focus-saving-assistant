@@ -2,19 +2,29 @@
  * Settings page logic
  */
 
-import type { Settings } from '../types/index.js';
+import type { ClassificationItem, Settings } from '../types/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { formatHour } from '../core/quiet-hours.ts';
-import { normalizeSettingsShape } from '../core/settings-migration.ts';
+import { deriveAudience, normalizeSettingsShape } from '../core/settings-migration.ts';
+import {
+  getClassificationLimitWarnings,
+  MAX_CATEGORY_ITEMS,
+  MAX_SAFETY_LEVEL_ITEMS,
+  sanitizeItemDescription,
+  validateNewItem,
+  type ItemKind,
+} from '../core/classification-limits.ts';
 import { getSettings as getStoredSettings } from '../utils/storage.js';
 import { initPasswordGate } from './utils/password-gate.js';
 import { whenDocumentReady } from './utils/document-ready.js';
 import { showPageLoadErrorInMain } from './utils/page-load-error.js';
-import { PROMPT_TEMPLATES, getDefaultSettings, renderPatternList, renderClassificationItemList, showStatus } from './utils/form-helpers.js';
+import { getDefaultSettings, renderPatternList, renderClassificationItemList, showStatus } from './utils/form-helpers.js';
 import { loadAvailableModels } from './utils/ai-models-handler.js';
+import { commitAudienceField, populateAiTab, readAiTabValues, setupAiTabListeners, validateAiTab } from './utils/ai-tab.js';
 import { loadTelegramGroups, testTelegram } from './utils/telegram-handler.js';
 
 let currentSettings: Settings;
+let aiTabPopulated = false;
 
 const initOptionsPage = async () => {
   try {
@@ -87,16 +97,9 @@ function populateForm(settings: Settings): void {
   }
   const aiEnableEl = document.getElementById('enableAIClassification') as HTMLInputElement;
   if (aiEnableEl) aiEnableEl.checked = settings.enableAIClassification !== false;
-  const aiPromptEl = document.getElementById('aiClassificationPrompt') as HTMLTextAreaElement;
-  if (aiPromptEl) {
-    // Remove any existing "Return JSON" instructions as they're added via system prompt
-    const promptValue = (settings.aiClassificationPrompt || PROMPT_TEMPLATES.default)
-      .replace(/Return JSON:.*$/im, '')
-      .replace(/return JSON:.*$/im, '')
-      .trim();
-    aiPromptEl.value = promptValue;
-  }
-  updatePromptPreview();
+  // Decision model, explanation model, audience, prompts, mode line (the single-call prompt opens only on first load)
+  populateAiTab(settings, { initial: !aiTabPopulated });
+  aiTabPopulated = true;
   
   // Content restrictions: categories and safety levels (list + Allow/Block toggle)
   const categoryItems = settings.categoryItems ?? [];
@@ -329,31 +332,34 @@ function setupEventListeners(): void {
     }
   });
 
-  // Add category
+  // Add category / safety level: core/classification-limits decides (empty, too long, duplicate, limit)
   const addCategoryBtn = document.getElementById('addCategoryBtn');
   if (addCategoryBtn) {
     addCategoryBtn.addEventListener('click', () => {
       const input = document.getElementById('newCategoryInput') as HTMLInputElement;
-      const name = input?.value?.trim();
-      if (name) {
-        addClassificationItem('category', name);
-        if (input) input.value = '';
-      }
+      if (addClassificationItem('category', input?.value ?? '') && input) input.value = '';
     });
   }
 
-  // Add safety level
   const addSafetyLevelBtn = document.getElementById('addSafetyLevelBtn');
   if (addSafetyLevelBtn) {
     addSafetyLevelBtn.addEventListener('click', () => {
       const input = document.getElementById('newSafetyLevelInput') as HTMLInputElement;
-      const name = input?.value?.trim();
-      if (name) {
-        addClassificationItem('safetyLevel', name);
-        if (input) input.value = '';
-      }
+      if (addClassificationItem('safetyLevel', input?.value ?? '') && input) input.value = '';
     });
   }
+
+  // Optional description of a category / safety level (delegated; no re-render, so typing keeps the focus)
+  document.addEventListener('input', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (!target.classList.contains('classification-description')) return;
+    const index = parseInt(target.dataset.index || '0');
+    if (target.dataset.type === 'category') {
+      currentSettings.categoryItems = withItemDescription(currentSettings.categoryItems ?? [], index, target.value);
+    } else if (target.dataset.type === 'safetyLevel') {
+      currentSettings.safetyLevelItems = withItemDescription(currentSettings.safetyLevelItems ?? [], index, target.value);
+    }
+  });
 
   // Toggle Allow/Block for classification items (delegated)
   document.addEventListener('change', (e) => {
@@ -367,32 +373,8 @@ function setupEventListeners(): void {
     }
   });
   
-  // Prompt templates
-  const applyTemplateBtn = document.getElementById('applyTemplateBtn');
-  if (applyTemplateBtn) {
-    applyTemplateBtn.addEventListener('click', () => {
-      const templateEl = document.getElementById('promptTemplate') as HTMLSelectElement;
-      const template = templateEl?.value;
-      if (template && PROMPT_TEMPLATES[template]) {
-        const promptEl = document.getElementById('aiClassificationPrompt') as HTMLTextAreaElement;
-        if (promptEl) {
-          // Remove any existing "Return JSON" instructions as they're added via system prompt
-          const templateValue = PROMPT_TEMPLATES[template]
-            .replace(/Return JSON:.*$/im, '')
-            .replace(/return JSON:.*$/im, '')
-            .trim();
-          promptEl.value = templateValue;
-          updatePromptPreview();
-        }
-      }
-    });
-  }
-  
-  // Prompt preview
-  const promptEl = document.getElementById('aiClassificationPrompt') as HTMLTextAreaElement;
-  if (promptEl) {
-    promptEl.addEventListener('input', updatePromptPreview);
-  }
+  // AI Classification tab: mode line, decision model picker, Test model, audience, prompts
+  setupAiTabListeners(() => currentSettings);
   
   // AI Classification toggle - update dependent fields
   const aiEnableEl = document.getElementById('enableAIClassification') as HTMLInputElement;
@@ -609,14 +591,29 @@ function removePattern(patternType: 'restrictedPatterns' | 'allowedPatterns' | '
   }
 }
 
-function addClassificationItem(type: 'category' | 'safetyLevel', name: string): void {
-  const items = type === 'category' ? (currentSettings.categoryItems ?? []) : (currentSettings.safetyLevelItems ?? []);
-  const lower = name.toLowerCase();
-  if (items.some((i) => i.name.toLowerCase() === lower)) {
-    showStatus('Already in list', 'info');
-    return;
+/** Text of the add-row error toast (spec D-12). */
+function describeItemError(code: 'empty' | 'too-long' | 'duplicate' | 'limit', kind: ItemKind): string {
+  switch (code) {
+    case 'empty': return 'Enter a name (1-40 characters).';
+    case 'too-long': return 'The name is too long (maximum 40 characters).';
+    case 'duplicate': return 'Already in list';
+    default:
+      return kind === 'category'
+        ? `Category limit reached (${MAX_CATEGORY_ITEMS}). Remove one before adding another.`
+        : `Safety level limit reached (${MAX_SAFETY_LEVEL_ITEMS}). Remove one before adding another.`;
   }
-  const newItem = { name, restricted: true };
+}
+
+/** Adds an item unless the name is empty, too long, a duplicate or over the limit. Returns whether it was added. */
+function addClassificationItem(type: 'category' | 'safetyLevel', rawName: string): boolean {
+  const items = type === 'category' ? (currentSettings.categoryItems ?? []) : (currentSettings.safetyLevelItems ?? []);
+  const kind: ItemKind = type === 'category' ? 'category' : 'safety';
+  const checked = validateNewItem(rawName, items.map((i) => i.name), kind, items.length);
+  if (!checked.ok) {
+    showStatus(describeItemError(checked.code, kind), checked.code === 'duplicate' ? 'info' : 'error');
+    return false;
+  }
+  const newItem: ClassificationItem = { name: checked.name, restricted: true };
   if (type === 'category') {
     currentSettings.categoryItems = [...items, newItem];
     renderClassificationItemList('categoryItemsList', currentSettings.categoryItems, 'category');
@@ -624,6 +621,17 @@ function addClassificationItem(type: 'category' | 'safetyLevel', name: string): 
     currentSettings.safetyLevelItems = [...items, newItem];
     renderClassificationItemList('safetyLevelItemsList', currentSettings.safetyLevelItems, 'safetyLevel');
   }
+  return true;
+}
+
+/** The list with the description of one item replaced; an empty description removes the property. */
+function withItemDescription(items: ClassificationItem[], index: number, raw: string): ClassificationItem[] {
+  const current = items[index];
+  if (!current) return items;
+  const { description: _previous, ...rest } = current;
+  const description = sanitizeItemDescription(raw);
+  const updated: ClassificationItem = description ? { ...rest, description } : rest;
+  return items.map((item, i) => (i === index ? updated : item));
 }
 
 function removeClassificationItem(type: 'category' | 'safetyLevel', index: number): void {
@@ -658,31 +666,6 @@ function toggleClassificationItem(type: 'category' | 'safetyLevel', index: numbe
   }
 }
 
-function updatePromptPreview(): void {
-  const promptEl = document.getElementById('aiClassificationPrompt') as HTMLTextAreaElement;
-  const preview = document.getElementById('promptPreview');
-  if (!promptEl || !preview) return;
-  
-  const userPrompt = promptEl.value || '';
-  const exampleUrl = 'https://example.com/educational-page';
-  const exampleTitle = 'Example Educational Page';
-  
-  // Substitute variables in user prompt
-  let substitutedPrompt = userPrompt
-    .replace(/{url}/g, exampleUrl)
-    .replace(/{title}/g, exampleTitle);
-  
-  // Add system prompt for JSON format
-    const systemPrompt = 'Return JSON: {isEducational: boolean, suggestedUrl: string, noUrlReason: string, category: string, isAgeAppropriate: boolean, safetyLevel: string, reason: string}';
-  
-  // Combine user prompt with system prompt
-  const fullPrompt = substitutedPrompt 
-    ? `${substitutedPrompt}\n\n${systemPrompt}`
-    : systemPrompt;
-  
-  preview.textContent = fullPrompt;
-}
-
 function updateProviderHelpText(provider: string): void {
   const providerHelpText = document.getElementById('providerHelpText');
   const tokenHelpText = document.getElementById('tokenHelpText');
@@ -713,12 +696,11 @@ function updateProviderHelpText(provider: string): void {
 
 async function saveSettings(): Promise<void> {
   try {
+    commitAudienceField();
+    // Nothing is written when the decision stage is enabled but unusable (inline errors, focus, toast).
+    if (!validateAiTab()) return;
     const restrictedMsgEl = document.getElementById('restrictedPageMessage') as HTMLTextAreaElement;
-    const aiProviderEl = document.getElementById('aiProvider') as HTMLSelectElement;
-    const aiTokenEl = document.getElementById('aiApiToken') as HTMLInputElement;
-    const aiModelEl = document.getElementById('aiModel') as HTMLSelectElement;
-    const aiPromptEl = document.getElementById('aiClassificationPrompt') as HTMLTextAreaElement;
-    const aiEnableEl = document.getElementById('enableAIClassification') as HTMLInputElement;
+    const aiValues = readAiTabValues();
     const tgTokenEl = document.getElementById('telegramBotToken') as HTMLInputElement;
     const tgChatSelectEl = document.getElementById('telegramChatId') as HTMLSelectElement;
     const tgChatManualEl = document.getElementById('telegramChatIdManual') as HTMLInputElement;
@@ -762,14 +744,7 @@ async function saveSettings(): Promise<void> {
       allowedPatterns: currentSettings.allowedPatterns || [],
       ignoredPatterns: currentSettings.ignoredPatterns || [],
       restrictedPageMessage: restrictedMsgEl?.value || '',
-      aiProvider: (aiProviderEl?.value || 'github') as 'github' | 'openrouter',
-      aiApiToken: aiTokenEl?.value || '',
-      aiModel: aiModelEl?.value || '',
-      aiClassificationPrompt: (aiPromptEl?.value || PROMPT_TEMPLATES.default)
-        .replace(/Return JSON:.*$/im, '')
-        .replace(/return JSON:.*$/im, '')
-        .trim(),
-      enableAIClassification: aiEnableEl?.checked !== false,
+      ...aiValues,
       categoryItems: currentSettings.categoryItems ?? [],
       safetyLevelItems: currentSettings.safetyLevelItems ?? [],
       telegramBotToken: tgTokenEl?.value || '',
@@ -790,7 +765,11 @@ async function saveSettings(): Promise<void> {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings });
     currentSettings = settings;
     
-    showStatus('Settings saved successfully!', 'success');
+    const limitWarnings = [
+      ...getClassificationLimitWarnings(settings.categoryItems, 'category'),
+      ...getClassificationLimitWarnings(settings.safetyLevelItems, 'safety'),
+    ];
+    showStatus(['Settings saved successfully!', ...limitWarnings].join(' '), 'success');
     
     // If password changed, clear session auth and reload page
     if (oldPassword !== newPassword) {
@@ -851,7 +830,16 @@ function migrateImportedSettings(imported: Record<string, unknown>): Settings {
       }
     }
   }
-  return normalizeSettingsShape({ ...getDefaultSettings(), ...s, categoryItems: categoryItems ?? getDefaultSettings().categoryItems, safetyLevelItems: safetyLevelItems ?? getDefaultSettings().safetyLevelItems } as Settings);
+  const defaults = getDefaultSettings();
+  const base = {
+    ...defaults,
+    ...s,
+    categoryItems: categoryItems ?? defaults.categoryItems,
+    safetyLevelItems: safetyLevelItems ?? defaults.safetyLevelItems,
+  } as Settings;
+  // Old exports have no audience: derive it from the exported single-call prompt, like the stored-settings migration.
+  if (typeof s.aiAudience !== 'string') base.aiAudience = deriveAudience(s.aiClassificationPrompt);
+  return normalizeSettingsShape(base);
 }
 
 async function importSettings(e: Event): Promise<void> {

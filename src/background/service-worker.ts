@@ -14,6 +14,7 @@ import { handleHistoryStateUpdated } from './quiet-hours-handler';
 import { runWeeklyReportCheck, ensureWeeklyReportAlarm } from './weekly-report-handler';
 import { syncHistoryFromBrowser } from './history-sync-handler';
 import { pollTelegramUpdates } from './telegram-commands';
+import { recoverUnfinishedNotices } from './explanation-runner';
 import { processNotificationQueue, discardNotificationQueue } from '../utils/telegram-notifier';
 import { planNotificationFlush, isFlushAlarmCurrent } from '../core/notification-queue.ts';
 import {
@@ -137,3 +138,7 @@ setupMessageHandlers();
 void ensureWeeklyReportAlarm()
   .then((created) => (created ? runWeeklyReportCheck() : undefined))
   .catch((error) => console.error('Weekly report alarm setup failed:', error));
+
+// Once per worker instance: finish Telegram notices that a stopped worker left in their "pending" layout.
+void recoverUnfinishedNotices()
+  .catch((error) => console.error('Notice recovery failed:', error));

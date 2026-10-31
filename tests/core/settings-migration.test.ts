@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { DEFAULT_SETTINGS } from '../../src/core/default-settings.ts';
 import {
+  deriveAudience,
   migrateStoredSettings,
   normalizeSettingsShape,
   withDerivedClassificationLists,
@@ -256,5 +257,245 @@ describe('withDerivedClassificationLists', () => {
     const out = withDerivedClassificationLists(input);
     assert.notEqual(out, input);
     assert.equal(input.availableCategories, undefined);
+  });
+});
+
+const STRICT_AUDIENCE = 'children; be strict: anything not clearly suitable counts as unsuitable';
+
+describe('deriveAudience (opening sentence of the stored single-call prompt)', () => {
+  const cases: Array<[string, string | undefined, string]> = [
+    ['the 6-10 template', 'Evaluate if this site is suitable for children aged 6-10. URL: {url}, Title: {title}.', 'children aged 6-10'],
+    ['the teens template', 'Classify content by educational value for teens aged 13-16. URL: {url}, Title: {title}.', 'teenagers aged 13-16'],
+    ['the strict template', 'Determine if this content is exclusively educational and safe for children. URL: {url}.', STRICT_AUDIENCE],
+    ['the default template', 'Classify if this URL/title is educational content suitable for children. URL: {url}, Title: {title}.', 'children'],
+    ['a custom prompt', 'Is this page fine for my daughter? {url}', 'children'],
+    ['an empty prompt', '', 'children'],
+    ['no prompt', undefined, 'children'],
+    ['leading whitespace is ignored', '  \n Evaluate if this site is suitable for children aged 6-10. URL: {url}', 'children aged 6-10'],
+    ['the sentence in the middle does not count', 'Please. Evaluate if this site is suitable for children aged 6-10.', 'children'],
+  ];
+  for (const [label, prompt, expected] of cases) {
+    it(`${label} -> ${expected}`, () => {
+      assert.equal(deriveAudience(prompt), expected);
+    });
+  }
+});
+
+describe('migrateStoredSettings — two-stage settings (AC4)', () => {
+  it('a legacy object keeps the generative settings byte for byte and gets the Stage 1 defaults', () => {
+    const prompt = 'My own prompt about {url} and {title}.\nSecond line.';
+    const out = migrateStoredSettings(
+      legacy({ aiProvider: 'openrouter', aiModel: 'openai/gpt-4o-mini', aiApiToken: ' sk-keep ', aiClassificationPrompt: prompt }),
+    );
+    assert.equal(out.aiProvider, 'openrouter');
+    assert.equal(out.aiModel, 'openai/gpt-4o-mini');
+    assert.equal(out.aiApiToken, ' sk-keep ');
+    assert.equal(out.aiClassificationPrompt, prompt);
+    assert.equal(out.decisionEnabled, false);
+    assert.equal(out.decisionModel, '');
+    assert.equal(out.decisionApiToken, '');
+    assert.equal(out.enableAIExplanation, true);
+    assert.equal(out.aiExplanationPrompt, DEFAULT_SETTINGS.aiExplanationPrompt);
+  });
+
+  it('the default explanation prompt has the placeholders and no JSON instructions', () => {
+    const p = DEFAULT_SETTINGS.aiExplanationPrompt;
+    for (const placeholder of ['{audience}', '{url}', '{title}', '{category}', '{safetyLevel}']) {
+      assert.ok(p.includes(placeholder), placeholder);
+    }
+    assert.equal(/json/i.test(p), false);
+  });
+
+  it('new defaults: decision stage off, audience "children", explanation on', () => {
+    assert.equal(DEFAULT_SETTINGS.decisionEnabled, false);
+    assert.equal(DEFAULT_SETTINGS.decisionApiToken, '');
+    assert.equal(DEFAULT_SETTINGS.decisionModel, '');
+    assert.equal(DEFAULT_SETTINGS.aiAudience, 'children');
+    assert.equal(DEFAULT_SETTINGS.enableAIExplanation, true);
+  });
+
+  it('aiAudience is derived from the three legacy template openings, and "children" for anything else', () => {
+    const derive = (aiClassificationPrompt: string) => migrateStoredSettings(legacy({ aiClassificationPrompt })).aiAudience;
+    assert.equal(derive('Evaluate if this site is suitable for children aged 6-10. URL: {url}'), 'children aged 6-10');
+    assert.equal(derive('Classify content by educational value for teens aged 13-16. URL: {url}'), 'teenagers aged 13-16');
+    assert.equal(derive('Determine if this content is exclusively educational and safe for children. URL: {url}'), STRICT_AUDIENCE);
+    assert.equal(derive('Totally custom prompt {url}'), 'children');
+    assert.equal(migrateStoredSettings(legacy({})).aiAudience, 'children', 'no prompt stored at all');
+  });
+
+  it('a stored aiAudience is kept, even when the stored prompt would derive another one', () => {
+    const out = migrateStoredSettings(
+      legacy({ aiAudience: 'my niece, 8', aiClassificationPrompt: 'Evaluate if this site is suitable for children aged 6-10. URL: {url}' }),
+    );
+    assert.equal(out.aiAudience, 'my niece, 8');
+  });
+
+  it('the stored prompt text is never rewritten when the audience is derived', () => {
+    const prompt = 'Evaluate if this site is suitable for children aged 6-10. URL: {url}, Title: {title}.';
+    assert.equal(migrateStoredSettings(legacy({ aiClassificationPrompt: prompt })).aiClassificationPrompt, prompt);
+  });
+
+  it('running twice gives the same result (the derived audience is stable)', () => {
+    const once = migrateStoredSettings(
+      legacy({ aiClassificationPrompt: 'Classify content by educational value for teens aged 13-16. URL: {url}', restrictedPatterns: null }),
+    );
+    assert.equal(once.aiAudience, 'teenagers aged 13-16');
+    assert.deepEqual(migrateStoredSettings(once), once);
+  });
+
+  it('wrong types are coerced field by field', () => {
+    const out = migrateStoredSettings(
+      legacy({
+        decisionEnabled: 'yes',
+        decisionApiToken: 7,
+        decisionModel: null,
+        aiAudience: 5,
+        enableAIExplanation: 'no',
+        aiExplanationPrompt: 12,
+      }),
+    );
+    assert.equal(out.decisionEnabled, false);
+    assert.equal(out.decisionApiToken, '');
+    assert.equal(out.decisionModel, '');
+    assert.equal(out.aiAudience, 'children');
+    assert.equal(out.enableAIExplanation, true);
+    assert.equal(out.aiExplanationPrompt, DEFAULT_SETTINGS.aiExplanationPrompt);
+  });
+
+  it('valid values of the new fields are kept', () => {
+    const out = migrateStoredSettings(
+      legacy({
+        decisionEnabled: true,
+        decisionApiToken: 'dec-key',
+        decisionModel: 'liquid/d1.1-20261027',
+        aiAudience: 'teenagers aged 13-16',
+        enableAIExplanation: false,
+        aiExplanationPrompt: 'Explain {url} to {audience}.',
+      }),
+    );
+    assert.equal(out.decisionEnabled, true);
+    assert.equal(out.decisionApiToken, 'dec-key');
+    assert.equal(out.decisionModel, 'liquid/d1.1-20261027');
+    assert.equal(out.aiAudience, 'teenagers aged 13-16');
+    assert.equal(out.enableAIExplanation, false);
+    assert.equal(out.aiExplanationPrompt, 'Explain {url} to {audience}.');
+  });
+
+  it('aiAudience is trimmed and cut to 200 characters', () => {
+    assert.equal(migrateStoredSettings(legacy({ aiAudience: 'x'.repeat(300) })).aiAudience, 'x'.repeat(200));
+    assert.equal(migrateStoredSettings(legacy({ aiAudience: '  teens  ' })).aiAudience, 'teens');
+    assert.equal(migrateStoredSettings(legacy({ aiAudience: 'y'.repeat(200) })).aiAudience, 'y'.repeat(200));
+  });
+
+  it('does not mutate its input', () => {
+    const input = legacy({ aiClassificationPrompt: 'Evaluate if this site is suitable for children aged 6-10.', categoryItems: [{ name: ' A  b ', restricted: true }] });
+    const snapshot = JSON.parse(JSON.stringify(input));
+    migrateStoredSettings(input);
+    assert.deepEqual(input, snapshot);
+  });
+
+  it('normalizeSettingsShape coerces the same fields', () => {
+    const out = normalizeSettingsShape(
+      stored({ decisionEnabled: 1, decisionApiToken: {}, decisionModel: 3, aiAudience: '   ', enableAIExplanation: null, aiExplanationPrompt: '' }),
+    );
+    assert.equal(out.decisionEnabled, false);
+    assert.equal(out.decisionApiToken, '');
+    assert.equal(out.decisionModel, '');
+    assert.equal(out.aiAudience, 'children');
+    assert.equal(out.enableAIExplanation, true);
+    assert.equal(out.aiExplanationPrompt, DEFAULT_SETTINGS.aiExplanationPrompt);
+  });
+});
+
+describe('default lists are not migrated (AC44)', () => {
+  const shopping = (items: Array<{ name: string; restricted: boolean }>) => items.find((i) => i.name === 'Shopping');
+
+  it('new installs: Shopping is in the default restricted categories', () => {
+    assert.equal(shopping(DEFAULT_SETTINGS.categoryItems)?.restricted, true);
+    assert.equal(DEFAULT_SETTINGS.categoryItems.find((i) => i.name === 'Retail')?.restricted, true, 'Retail stays restricted');
+  });
+
+  it('a stored list with Shopping unrestricted keeps it unrestricted', () => {
+    const items = [
+      { name: 'Shopping', restricted: false },
+      { name: 'Retail', restricted: true },
+    ];
+    const out = migrateStoredSettings(legacy({ categoryItems: items }));
+    assert.deepEqual(out.categoryItems, items);
+  });
+
+  it('a stored full default list from an older install is not touched (Shopping stays unrestricted)', () => {
+    const olderDefaults = DEFAULT_SETTINGS.categoryItems.map((i) => (i.name === 'Shopping' ? { ...i, restricted: false } : i));
+    const out = migrateStoredSettings(legacy({ categoryItems: olderDefaults }));
+    assert.equal(shopping(out.categoryItems)?.restricted, false);
+    assert.deepEqual(out.categoryItems, olderDefaults);
+  });
+
+  it('legacy available/restricted arrays migrate exactly as before: Shopping is not added to restricted', () => {
+    const out = migrateStoredSettings(
+      legacy({ categoryItems: [], availableCategories: ['News', 'Shopping', 'Games'], restrictedCategories: ['Games'] }),
+    );
+    assert.deepEqual(out.categoryItems, [
+      { name: 'News', restricted: false },
+      { name: 'Shopping', restricted: false },
+      { name: 'Games', restricted: true },
+    ]);
+    assert.deepEqual(out.availableCategories, ['News', 'Shopping', 'Games']);
+    assert.deepEqual(out.restrictedCategories, ['Games']);
+  });
+});
+
+describe('item lists survive normalisation (AC47)', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `Cat ${i + 1}`, restricted: i % 2 === 0 }));
+
+  it('a stored list of 45 categories is kept at 45 by normalizeSettingsShape and migrateStoredSettings', () => {
+    const items = many(45);
+    assert.equal(normalizeSettingsShape(stored({ categoryItems: items })).categoryItems.length, 45);
+    const migrated = migrateStoredSettings(legacy({ categoryItems: items }));
+    assert.deepEqual(migrated.categoryItems, items);
+  });
+
+  it('12 safety levels and over-long names are kept too (only sending is limited)', () => {
+    const levels = Array.from({ length: 12 }, (_, i) => ({ name: `Level ${i + 1}`, restricted: false }));
+    const longName = { name: 'L'.repeat(60), restricted: true };
+    const out = normalizeSettingsShape(stored({ safetyLevelItems: levels, categoryItems: [longName] }));
+    assert.equal(out.safetyLevelItems.length, 12);
+    assert.deepEqual(out.categoryItems, [longName]);
+  });
+
+  it('an old export with 45 categories imports intact (defaults merged under it, then normalised)', () => {
+    const exported = { aiProvider: 'github', categoryItems: many(45) };
+    const imported = normalizeSettingsShape({ ...DEFAULT_SETTINGS, ...exported } as unknown as Settings);
+    assert.deepEqual(imported.categoryItems, many(45));
+  });
+
+  it('invalid entries and case-insensitive duplicates are dropped, names are cleaned', () => {
+    const out = migrateStoredSettings(
+      legacy({
+        categoryItems: [
+          null,
+          'Games',
+          { restricted: true },
+          { name: '   ', restricted: false },
+          { name: '  Social \n Media\u0000 ', restricted: true },
+          { name: 'social media', restricted: false },
+          { name: 'News', restricted: false, description: '  Only  news \n' },
+        ],
+      }),
+    );
+    assert.deepEqual(out.categoryItems, [
+      { name: 'Social Media', restricted: true },
+      { name: 'News', restricted: false, description: 'Only news' },
+    ]);
+  });
+
+  it('normalising twice changes nothing', () => {
+    const once = normalizeSettingsShape(stored({ categoryItems: [{ name: ' a  b ', restricted: true }, { name: 'A B', restricted: false }, 3] }));
+    assert.deepEqual(normalizeSettingsShape(once), once);
+  });
+
+  it('item descriptions in stored settings are kept', () => {
+    const items = [{ name: 'Online Shops', restricted: true, description: 'Web shops that are not marketplaces' }];
+    assert.deepEqual(migrateStoredSettings(legacy({ categoryItems: items })).categoryItems, items);
   });
 });

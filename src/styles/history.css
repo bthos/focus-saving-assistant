@@ -341,6 +341,14 @@ header h1 {
   font-weight: var(--font-weight-medium);
 }
 
+.detail-note {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
 .detail-link {
   color: var(--color-success-dark);
   text-decoration: none;

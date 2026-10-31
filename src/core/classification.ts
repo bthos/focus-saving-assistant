@@ -61,7 +61,7 @@ export type ModelReplyParse =
 /**
  * Finds the first balanced `{...}` span by counting braces (braces inside JSON strings are counted too).
  */
-function findJsonObjectBounds(content: string): { start: number; end: number } | null {
+export function findJsonObjectBounds(content: string): { start: number; end: number } | null {
   const start = content.indexOf('{');
   if (start === -1) return null;
 

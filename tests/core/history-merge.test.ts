@@ -4,10 +4,11 @@ import assert from 'node:assert/strict';
 import {
   mergeHistoryEntries,
   mergeVisits,
+  patchHistoryClassification,
   upsertHistoryEntry,
   type NewHistoryEntry,
 } from '../../src/core/history-merge.ts';
-import type { HistoryEntry, VisitInfo } from '../../src/types/index.ts';
+import type { ClassificationResult, HistoryEntry, VisitInfo } from '../../src/types/index.ts';
 
 function visit(visitTime: number, transition = 'link'): VisitInfo {
   return { visitTime, transition };
@@ -220,5 +221,87 @@ describe('upsertHistoryEntry', () => {
       assert.equal(original.restricted, false);
       assert.deepEqual(original.visits, [visit(1)]);
     });
+  });
+});
+
+describe('patchHistoryClassification', () => {
+  const before: ClassificationResult = { isEducational: false, category: 'Games', reason: 'synthesized' };
+  const after: ClassificationResult = {
+    isEducational: false,
+    category: 'Games',
+    reason: 'model reason',
+    reasonSource: 'model',
+    generative: { status: 'done', attemptedAt: 5 },
+  };
+
+  function list(): HistoryEntry[] {
+    return [
+      entry({ id: 3, url: 'https://c.example/', timestamp: 3000, title: 'C' }),
+      entry({
+        id: 2,
+        url: 'https://games.example.com/play',
+        timestamp: 2000,
+        title: 'Play',
+        restricted: true,
+        reason: 'content-restricted',
+        matchedPattern: 'x',
+        visits: [visit(1900), visit(2000)],
+        visitCount: 2,
+        classification: before,
+      }),
+      entry({ id: 1, url: 'https://a.example/', timestamp: 1000, title: 'A' }),
+    ];
+  }
+
+  it('replaces only the classification of the entry with that exact URL', () => {
+    const out = patchHistoryClassification(list(), 'https://games.example.com/play', after);
+    assert.deepEqual(out[1].classification, after);
+    assert.deepEqual(out[0], list()[0]);
+    assert.deepEqual(out[2], list()[2]);
+  });
+
+  it('leaves visits, visitCount, timestamp, title, restricted and the rest of the entry unchanged', () => {
+    const original = list()[1];
+    const patched = patchHistoryClassification(list(), original.url, after)[1];
+    assert.deepEqual(patched.visits, original.visits);
+    assert.equal(patched.visitCount, 2);
+    assert.equal(patched.timestamp, 2000);
+    assert.equal(patched.title, 'Play');
+    assert.equal(patched.restricted, true);
+    assert.equal(patched.reason, 'content-restricted');
+    assert.equal(patched.matchedPattern, 'x');
+    assert.equal(patched.id, 2);
+  });
+
+  it('keeps the order of the list (the entry is not moved to the top)', () => {
+    const out = patchHistoryClassification(list(), 'https://a.example/', after);
+    assert.deepEqual(out.map((e) => e.id), [3, 2, 1]);
+  });
+
+  it('adds a classification to an entry that had none', () => {
+    const out = patchHistoryClassification(list(), 'https://a.example/', after);
+    assert.deepEqual(out[2].classification, after);
+  });
+
+  it('matches the URL exactly: a different path or trailing slash is another entry', () => {
+    const input = list();
+    const out = patchHistoryClassification(input, 'https://games.example.com/play/', after);
+    assert.equal(out, input);
+  });
+
+  it('a URL that is not in the list returns the same array reference', () => {
+    const input = list();
+    assert.equal(patchHistoryClassification(input, 'https://nowhere.example/', after), input);
+    const empty: HistoryEntry[] = [];
+    assert.equal(patchHistoryClassification(empty, 'https://nowhere.example/', after), empty);
+  });
+
+  it('does not mutate its input array or the entries in it', () => {
+    const input = list();
+    const snapshot = JSON.parse(JSON.stringify(input));
+    const out = patchHistoryClassification(input, 'https://games.example.com/play', after);
+    assert.deepEqual(input, snapshot);
+    assert.notEqual(out, input);
+    assert.notEqual(out[1], input[1]);
   });
 });

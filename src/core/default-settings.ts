@@ -32,5 +32,11 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   parentPassword: "",
   passwordHint: "Enter word \"friend\"",
-  enableSystemLogs: true
+  enableSystemLogs: true,
+  decisionEnabled: false,
+  decisionApiToken: '',
+  decisionModel: '',
+  aiAudience: 'children',
+  enableAIExplanation: true,
+  aiExplanationPrompt: 'A parental-control classifier blocked this page for {audience}.\nURL: {url}\nTitle: {title}\nClassification: category "{category}", safety level "{safetyLevel}".\n\nExplain why this page was blocked, then suggest an educational page on a similar topic that suits {audience}.',
 };

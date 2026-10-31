@@ -15,26 +15,24 @@ import {
 } from '../core/notification-queue.ts';
 import { formatHour, isQuietHoursNotifyEligible, type AllowedHours } from '../core/quiet-hours.ts';
 import type { WeeklyStats } from '../core/weekly-report.ts';
+import { escapeMarkdown } from '../core/telegram-markdown.ts';
+import {
+  buildBlockedSiteMessage,
+  buildEditMessageBody,
+  buildInlineKeyboardForUrl,
+  formatAccessOutcomeMarkdown,
+  formatTimestamp,
+  isMessageNotModified,
+  parseSendResult,
+  toBlockedSiteMessageInput,
+  type InlineKeyboard,
+} from '../core/telegram-block-message.ts';
+import { getRestrictedNotifyBlocker, type RestrictedNotifyBlocker } from '../core/telegram-eligibility.ts';
+
+// telegram-commands.ts and the pages import these from here.
+export { escapeMarkdown, formatAccessOutcomeMarkdown };
 
 const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
-
-/**
- * Escapes special Markdown characters in text for Telegram Markdown
- * Only escapes characters that are actually special in Telegram Markdown:
- * _ * [ ] ( ) ~ `
- */
-export function escapeMarkdown(text: string): string {
-  // Escape only special Markdown characters used in Telegram Markdown
-  return text
-    .replace(/\_/g, '\\_')
-    .replace(/\*/g, '\\*')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)')
-    .replace(/\~/g, '\\~')
-    .replace(/\`/g, '\\`');
-}
 
 /**
  * Truncates URL for display while preserving readability
@@ -42,49 +40,6 @@ export function escapeMarkdown(text: string): string {
 function truncateUrl(url: string, maxLength: number = 60): string {
   if (url.length <= maxLength) return url;
   return url.substring(0, maxLength - 3) + '...';
-}
-
-/**
- * Formats timestamp consistently across notifications
- * Format: YYYY-MM-DD hh:mm:ss
- */
-function formatTimestamp(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
-/**
- * Extracts hostname from URL for callback_data (max 64 bytes)
- */
-function urlToCallbackData(url: string): string {
-  try {
-    const urlStr = url.includes('://') ? url : `https://${url}`;
-    const hostname = new URL(urlStr).hostname?.replace(/^www\./i, '') || url;
-    return hostname.length > 50 ? hostname.substring(0, 50) : hostname;
-  } catch {
-    return url.length > 50 ? url.substring(0, 50) : url;
-  }
-}
-
-/**
- * Builds InlineKeyboardMarkup for add-to-list actions (callback_data max 64 bytes)
- */
-function buildInlineKeyboardForUrl(url: string): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
-  const data = urlToCallbackData(url);
-  return {
-    inline_keyboard: [
-      [
-        { text: '➕ Add to Allowed', callback_data: `allow:${data}` },
-        { text: '➕ Add to Restricted', callback_data: `restrict:${data}` },
-      ],
-      [{ text: '➕ Add to Ignored', callback_data: `ignore:${data}` }],
-    ],
-  };
 }
 
 /**
@@ -132,50 +87,24 @@ function formatTitleUrlLines(title: string, url: string): string {
     `🔗 *URL:* ${displayUrl}\n`;
 }
 
-/**
- * Single-line Markdown: *Access:* outcome + human-readable reaction reason (for Telegram).
- */
-export function formatAccessOutcomeMarkdown(
-  outcome: 'allowed' | 'blocked',
-  reasonCode: string,
-  matchedPattern?: string | null
-): string {
-  const esc = (s: string) => escapeMarkdown(s);
-  if (outcome === 'allowed') {
-    if (reasonCode === 'allowed') {
-      return `*Access:* ✅ Allowed — ${esc('URL matches an entry on the allow list')}`;
-    }
-    if (reasonCode === 'permitted') {
-      return `*Access:* ✅ Allowed — ${esc('No URL restriction matched; page permitted')}`;
-    }
-    return `*Access:* ✅ Allowed — ${esc(reasonCode)}`;
-  }
-  if (reasonCode === 'restricted') {
-    const p = matchedPattern?.trim();
-    const detail = p
-      ? `URL matches restricted list (pattern: ${p})`
-      : 'URL matches restricted list';
-    return `*Access:* 🚫 Blocked — ${esc(detail)}`;
-  }
-  if (reasonCode === 'content-restricted') {
-    return `*Access:* 🚫 Blocked — ${esc('Content restriction (category or safety level)')}`;
-  }
-  return `*Access:* 🚫 Blocked — ${esc(reasonCode)}`;
-}
+/** Where a sent message went: the target chat and the message id (null when the response had none). */
+export type TelegramSendResult = { chatId: string; messageId: number | null };
 
 /**
- * Sends a message to Telegram
+ * Sends a message to Telegram.
+ * Resolves the send result (messageId is null if Telegram accepted the message but the response could not be read),
+ * or null when the send failed.
  */
 export async function sendTelegramMessage(
   botToken: string, 
   chatId: string, 
   message: string, 
   parseMode: string = 'Markdown',
-  replyMarkup?: { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }
-): Promise<boolean> {
+  replyMarkup?: InlineKeyboard
+): Promise<TelegramSendResult | null> {
   if (!botToken || !chatId) {
     console.warn('Telegram bot token or chat ID not configured');
-    return false;
+    return null;
   }
   
   try {
@@ -217,22 +146,24 @@ export async function sendTelegramMessage(
       }
       console.error(errorMessage);
       await addSystemLog('telegram', errorMessage);
-      return false;
+      return null;
     }
     
-    return true;
+    // The message is delivered at this point; an unreadable body only costs us the message id.
+    const bodyText = await response.text().catch(() => '');
+    return { chatId: String(chatId), messageId: parseSendResult(bodyText).messageId };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Error sending Telegram message:', errorMessage);
     await addSystemLog('telegram', `Failed to send Telegram message: ${errorMessage}`);
-    return false;
+    return null;
   }
 }
 
-const EMPTY_INLINE_KEYBOARD = JSON.stringify({ inline_keyboard: [] });
-
 /**
- * Updates an existing chat message (e.g. after inline button action). Strips inline keyboard.
+ * Updates an existing chat message. The inline keyboard is replaced by `replyMarkup`; without it the keyboard
+ * is stripped (button presses in telegram-commands.ts). Telegram's "message is not modified" answer counts as success,
+ * so repeating an edit with identical content is harmless.
  * @see https://core.telegram.org/bots/api#editmessagetext
  */
 export async function editTelegramMessageText(
@@ -240,32 +171,32 @@ export async function editTelegramMessageText(
   chatId: string | number,
   messageId: number,
   text: string,
-  parseMode: string = 'Markdown'
+  parseMode: string = 'Markdown',
+  replyMarkup?: InlineKeyboard
 ): Promise<boolean> {
   if (!botToken || chatId === undefined || chatId === null || messageId == null) {
     return false;
   }
   try {
     const url = `${TELEGRAM_API_BASE}${botToken}/editMessageText`;
-    const body = {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      parse_mode: parseMode,
-      reply_markup: EMPTY_INLINE_KEYBOARD,
-    };
+    const body = buildEditMessageBody(chatId, messageId, text, parseMode, replyMarkup);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      let errDetail = `${response.status}`;
+      const errText = await response.text().catch(() => '');
+      let errDetail = errText || `${response.status}`;
       try {
-        const errJson = await response.json();
-        if (errJson.description) errDetail = errJson.description;
+        const errJson = JSON.parse(errText);
+        if (errJson?.description) errDetail = errJson.description;
       } catch {
-        errDetail = await response.text();
+        // not JSON: keep the raw body
+      }
+      if (response.status === 400 && isMessageNotModified(errDetail)) {
+        console.log('editMessageText: message already has this content');
+        return true;
       }
       console.warn('editMessageText failed:', errDetail);
       await addSystemLog('telegram', `editMessageText failed: ${errDetail}`);
@@ -283,10 +214,22 @@ export async function editTelegramMessageText(
 export type RestrictedSiteNotifyExtras = {
   classification?: ClassificationResult | null;
   pageTitle?: string;
+  /** 'pending': this block event owns Stage 2, so the first message carries the pending paragraph and is edited later. */
+  explanation?: 'pending';
+  /** Timestamp shown in the message; defaults to now. The later edit reuses the first message's value. */
+  sentAt?: number;
+};
+
+const RESTRICTED_NOTIFY_SKIPPED: Record<RestrictedNotifyBlocker, string> = {
+  disabled: 'Telegram notifications disabled',
+  'type-off': 'Restricted site notifications disabled',
+  'page-type-off': 'Restricted page notifications disabled',
+  'not-configured': 'Telegram bot token or chat ID not configured',
 };
 
 /**
  * Sends a notification about a restricted site (optionally merged with AI classification + tab title).
+ * Resolves the send result (see sendTelegramMessage), or null when nothing was sent.
  */
 export async function notifyRestrictedSite(
   settings: Settings, 
@@ -294,71 +237,25 @@ export async function notifyRestrictedSite(
   reason: string, 
   matchedPattern?: string | null,
   extras?: RestrictedSiteNotifyExtras
-): Promise<void> {
-  if (!settings.enableTelegramNotifications) {
-    console.log('Telegram notifications disabled');
-    return;
-  }
-  
-  // Check if restricted notifications are enabled
-  const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
-  if (!notificationTypes.includes('restricted')) {
-    console.log('Restricted site notifications disabled');
-    return;
-  }
-  
-  // Check if restricted page notifications are enabled
-  const pageNotificationTypes = settings.pageNotificationTypes || ['restricted', 'nonEducational'];
-  if (!pageNotificationTypes.includes('restricted')) {
-    console.log('Restricted page notifications disabled');
-    return;
-  }
-  
-  if (!settings.telegramBotToken || !settings.telegramChatId) {
-    console.warn('Telegram bot token or chat ID not configured');
-    return;
+): Promise<TelegramSendResult | null> {
+  const blocker = getRestrictedNotifyBlocker(settings);
+  if (blocker) {
+    console.log(RESTRICTED_NOTIFY_SKIPPED[blocker]);
+    return null;
   }
   
   // For restricted sites, always send instant notification regardless of notificationFrequency
   // This ensures parents are immediately notified of restricted access attempts
   
-  const userProfile = escapeMarkdown(settings.userProfileName || 'Unknown User');
-  const displayUrl = escapeMarkdown(url);
-  const displayReason = escapeMarkdown(reason === 'restricted' ? 'Site in restricted list' : reason);
-  const displayPattern = matchedPattern ? escapeMarkdown(matchedPattern) : null;
-  const cls = extras?.classification && !extras.classification.error ? extras.classification : null;
-  const isEducational = cls ? (cls.isEducational ?? cls.educational ?? null) : null;
-  const pageTitle = extras?.pageTitle ?? '';
-
-  let message: string;
-  if (cls) {
-    let detectionLine = '';
-    if (isEducational === false) {
-      detectionLine = `*Detection:* Non-educational content\n`;
-    } else if (isEducational === true) {
-      detectionLine = `*Detection:* Educational content\n`;
-    }
-    message =
-      `🚫 *Site Access Restricted* — *${userProfile}*\n\n` +
-      detectionLine +
-      `${formatAccessOutcomeMarkdown('blocked', reason, matchedPattern)}\n\n` +
-      formatTitleUrlLines(pageTitle, url) +
-      `📝 *Restriction:* ${displayReason}\n` +
-      (displayPattern ? `🔍 *Pattern:* ${displayPattern}\n` : '') +
-      `\n${buildClassificationDetailsMarkdown(cls)}` +
-      `\n🕐 ${formatTimestamp()}`;
-  } else {
-    const locBlock = pageTitle.trim()
-      ? formatTitleUrlLines(pageTitle, url)
-      : `🔗 *URL:* ${displayUrl}\n`;
-    message =
-      `🚫 *Site Access Restricted* — *${userProfile}*\n\n` +
-      `${formatAccessOutcomeMarkdown('blocked', reason, matchedPattern)}\n\n` +
-      locBlock +
-      `📝 *Reason:* ${displayReason}\n` +
-      (displayPattern ? `🔍 *Pattern:* ${displayPattern}\n` : '') +
-      `\n🕐 ${formatTimestamp()}`;
-  }
+  const message = buildBlockedSiteMessage(toBlockedSiteMessageInput(settings, {
+    url,
+    reason,
+    matchedPattern,
+    pageTitle: extras?.pageTitle,
+    classification: extras?.classification,
+    pending: extras?.explanation === 'pending',
+    sentAt: extras?.sentAt ?? Date.now(),
+  }));
   
   console.log('Sending Telegram notification for restricted site:', url);
   const replyMarkup = settings.enableTelegramCommands
@@ -377,6 +274,7 @@ export async function notifyRestrictedSite(
   } else {
     console.error('Failed to send Telegram notification');
   }
+  return result;
 }
 
 /**
@@ -409,7 +307,7 @@ export async function notifyAllowedPage(
     accessLine +
     `📄 *Title:* ${displayTitle === 'Not specified' ? '_Not specified_' : displayTitle}\n` +
     `🔗 *URL:* ${displayUrl}\n\n` +
-    `🕐 ${formatTimestamp()}`;
+    `🕐 ${formatTimestamp(Date.now())}`;
   
   await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
 }
@@ -461,7 +359,7 @@ export async function notifyAllowedPathTelegram(
     if (eduOn) {
       message += `\n${buildClassificationDetailsMarkdown(classification)}`;
     }
-    message += `\n🕐 ${formatTimestamp()}`;
+    message += `\n🕐 ${formatTimestamp(Date.now())}`;
     await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
     return;
   }
@@ -492,7 +390,7 @@ export async function notifyAllowedPathTelegram(
       }
       message += formatTitleUrlLines(title, url) +
         `\n${buildClassificationDetailsMarkdown(classification)}` +
-        `\n🕐 ${formatTimestamp()}`;
+        `\n🕐 ${formatTimestamp(Date.now())}`;
       const replyMarkup = settings.enableTelegramCommands
         ? buildInlineKeyboardForUrl(url)
         : undefined;
@@ -547,7 +445,7 @@ export async function sendWeeklyReport(settings: Settings, stats: WeeklyStats): 
     `🏷️ *Top categories:* ${topCategories}\n\n` +
     `📅 *Period:* ${escapeMarkdown(stats.periodStart)} - ${escapeMarkdown(stats.periodEnd)}`;
   
-  return await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
+  return (await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message)) !== null;
 }
 
 /**
@@ -576,9 +474,9 @@ export async function notifyQuietHoursAttempt(
     `🌐 *Site:* \`${host}\`\n` +
     `⏰ *Allowed hours:* ${formatHour(allowedHours.start)} – ${formatHour(allowedHours.end)}\n\n` +
     `Further attempts are blocked without notice until ${formatHour(allowedHours.start)}.\n\n` +
-    `🕐 ${formatTimestamp()}`;
+    `🕐 ${formatTimestamp(Date.now())}`;
 
-  return await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
+  return (await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message)) !== null;
 }
 
 /**
@@ -648,10 +546,10 @@ export async function processNotificationQueue(settings: Settings): Promise<void
       return `${index + 1}. ${displayTitle}\n   \`${displayUrl}\`${accessNote}`;
     }).join('\n\n') +
     (items.length > 10 ? `\n\n... and *${items.length - 10}* more sites` : '') +
-    `\n\n🕐 ${formatTimestamp()}`;
+    `\n\n🕐 ${formatTimestamp(Date.now())}`;
 
   const sent = await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
-  if (!sent) {
+  if (sent === null) {
     return;
   }
 

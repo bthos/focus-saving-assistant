@@ -1,0 +1,106 @@
+{
+  "_comment": "Captured from HEAD 15b09ef: notifyRestrictedSite (src/utils/telegram-notifier.ts) run with fetch stubbed and the clock fixed to 2026-10-31 12:34:56 local time (sentAt = new Date(2026, 9, 31, 12, 34, 56)). input = the notice inputs; text = the exact Telegram body text HEAD produced. Regenerate only from HEAD, never from the new builder.",
+  "sentAt": [
+    2026,
+    10,
+    31,
+    12,
+    34,
+    56
+  ],
+  "cases": [
+    {
+      "id": "classifiedGames",
+      "input": {
+        "userProfile": "Alex",
+        "title": "Fun Games_Portal",
+        "url": "https://games.example.com/play?lvl=1",
+        "reasonCode": "content-restricted",
+        "matchedPattern": null,
+        "classification": {
+          "isEducational": false,
+          "category": "Games",
+          "safetyLevel": "High",
+          "isAgeAppropriate": false,
+          "suggestedUrl": "https://www.khanacademy.org/math",
+          "reason": "Games site (arcade) with *bold* text",
+          "noUrlReason": null
+        }
+      },
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Non-educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* Fun Games\\_Portal\n🔗 *URL:* https://games.example.com/play?lvl=1\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Games\n   • Safety Level: High\n   • Age Appropriate: No\n\n   • Educational: No\n   • Suggested Educational Resource: https://www.khanacademy.org/math\n\n📝 *Reason:*\nGames site \\(arcade\\) with \\*bold\\* text\n\n🕐 2026-10-31 12:34:56"
+    },
+    {
+      "id": "classifiedNoUrl",
+      "input": {
+        "userProfile": "Alex",
+        "title": "Arcade",
+        "url": "https://games.example.com/play",
+        "reasonCode": "content-restricted",
+        "matchedPattern": null,
+        "classification": {
+          "isEducational": null,
+          "category": "Social Media",
+          "safetyLevel": "Medium",
+          "reason": "Feeds",
+          "noUrlReason": "No educational equivalent"
+        }
+      },
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* Arcade\n🔗 *URL:* https://games.example.com/play\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Social Media\n   • Safety Level: Medium\n   • Age Appropriate: Not specified\n\n   • Educational: Unknown\n   • Suggested Educational Resource: Not specified (No educational equivalent)\n\n📝 *Reason:*\nFeeds\n\n🕐 2026-10-31 12:34:56"
+    },
+    {
+      "id": "classifiedEducational",
+      "input": {
+        "userProfile": "Alex",
+        "title": "",
+        "url": "https://e.example.org/x",
+        "reasonCode": "content-restricted",
+        "matchedPattern": null,
+        "classification": {
+          "isEducational": true,
+          "category": "Educational",
+          "safetyLevel": "High",
+          "isAgeAppropriate": true,
+          "reason": "ok",
+          "noUrlReason": "Already educational; no alternate resource suggested."
+        }
+      },
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* _Not specified_\n🔗 *URL:* https://e.example.org/x\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Educational\n   • Safety Level: High\n   • Age Appropriate: Yes\n\n   • Educational: Yes\n   • Suggested Educational Resource: Not specified (Already educational; no alternate resource suggested.)\n\n📝 *Reason:*\nok\n\n🕐 2026-10-31 12:34:56"
+    },
+    {
+      "id": "patternTitled",
+      "input": {
+        "userProfile": "Alex",
+        "title": "Cats [funny]",
+        "url": "https://youtube.com/watch?v=1",
+        "reasonCode": "restricted",
+        "matchedPattern": "youtube.com/*",
+        "classification": null
+      },
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Access:* 🚫 Blocked — URL matches restricted list \\(pattern: youtube.com/\\*\\)\n\n📄 *Title:* Cats \\[funny\\]\n🔗 *URL:* https://youtube.com/watch?v=1\n📝 *Reason:* Site in restricted list\n🔍 *Pattern:* youtube.com/\\*\n\n🕐 2026-10-31 12:34:56"
+    },
+    {
+      "id": "patternNoTitle",
+      "input": {
+        "userProfile": "Alex",
+        "title": "",
+        "url": "https://youtube.com/watch?v=1",
+        "reasonCode": "restricted",
+        "matchedPattern": null,
+        "classification": null
+      },
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Access:* 🚫 Blocked — URL matches restricted list\n\n🔗 *URL:* https://youtube.com/watch?v=1\n📝 *Reason:* Site in restricted list\n\n🕐 2026-10-31 12:34:56"
+    },
+    {
+      "id": "unknownUser",
+      "input": {
+        "userProfile": "",
+        "title": "T",
+        "url": "https://a.org",
+        "reasonCode": "restricted",
+        "matchedPattern": "a.org",
+        "classification": null
+      },
+      "text": "🚫 *Site Access Restricted* — *Unknown User*\n\n*Access:* 🚫 Blocked — URL matches restricted list \\(pattern: a.org\\)\n\n📄 *Title:* T\n🔗 *URL:* https://a.org\n📝 *Reason:* Site in restricted list\n🔍 *Pattern:* a.org\n\n🕐 2026-10-31 12:34:56"
+    }
+  ]
+}

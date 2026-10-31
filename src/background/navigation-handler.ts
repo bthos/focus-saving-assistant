@@ -2,15 +2,21 @@
  * Navigation event handlers for tracking and restricting URLs
  */
 
-import type { Settings, ClassificationResult, UrlCheckResult, VisitInfo } from '../types';
-import { getSettings, addHistoryEntry, getCachedClassification, cacheClassification } from '../utils/storage';
+import type { Settings, ClassificationResult, UrlCheckResult, VisitInfo, TelegramNoticeRef } from '../types';
+import { getSettings, addHistoryEntry, getCachedClassification, cacheClassification, claimExplanation } from '../utils/storage';
 import { checkUrl, isIgnored } from '../utils/url-matcher';
-import { classifyContent } from '../utils/ai-classifier';
+import { classifyPage } from '../utils/ai-classifier';
 import { notifyRestrictedSite, notifyAllowedPathTelegram } from '../utils/telegram-notifier';
 import { RESTRICTED_PAGE_PATH, STORAGE_KEYS } from '../utils/constants.js';
 import { addSystemLog } from '../utils/system-logger';
 import { enforceQuietHours } from './quiet-hours-handler';
+import { finishExplanation, recordNoticeRef, startExplanation, waitForExplanation, type BlockNotice } from './explanation-runner';
+import { isAiClassificationActive, resolveAiMode } from '../core/ai-mode.ts';
+import { planExplanation, withoutTelegramNotice } from '../core/explanation.ts';
 import { QUIET_HOURS_REASON } from '../core/quiet-hours.ts';
+import { buildReasonDetails, type RestrictedInfo } from '../core/restricted-info.ts';
+import { isRestrictedSiteNotifyEligible } from '../core/telegram-eligibility.ts';
+import { selectNoticeVariant } from '../core/telegram-block-message.ts';
 
 /**
  * Handle navigation before it completes
@@ -63,7 +69,11 @@ export async function handleBeforeNavigate(
 }
 
 /**
- * Block navigation and redirect to restricted page
+ * Block navigation and redirect to restricted page.
+ *
+ * Two-stage mode: when the decision model blocked a page and no explanation was attempted for this cache entry,
+ * this event claims Stage 2. The child is redirected and the Telegram notice is sent at once (never delayed);
+ * the reason and suggestion are produced afterwards, at the tail of this handler, and the same notice is edited.
  */
 async function blockNavigation(
   details: chrome.webNavigation.WebNavigationTransitionCallbackDetails | chrome.webNavigation.WebNavigationFramedCallbackDetails,
@@ -73,11 +83,26 @@ async function blockNavigation(
 ): Promise<void> {
   console.log('Restricted site detected in onBeforeNavigate:', details.url, 'Reason:', checkResult.reason);
 
+  const startedAt = Date.now();
+  const plan = planExplanation(classification, settings, checkResult.reason, startedAt);
+  let claimed: ClassificationResult | null = null;
+  if (plan.action === 'run' && classification) {
+    try {
+      claimed = await claimExplanation(details.url, classification.classifiedAt, startedAt);
+    } catch (e) {
+      console.error('Could not claim the explanation:', e);
+    }
+  }
+  // Concurrent with the redirect, notice and bookkeeping below; awaited at the tail.
+  const explanation = claimed ? startExplanation(settings, claimed) : null;
+  // What the block page, Telegram and history show first: the claimed entry carries the synthesized reason.
+  const shown = claimed ?? classification;
+
   try {
     // Encode URL to pass it as query parameter
     const encodedUrl = encodeURIComponent(details.url);
     // Also include suggested educational URL if available
-    const suggestedUrl = classification?.suggestedUrl || classification?.suggestedEducationalResource || null;
+    const suggestedUrl = shown?.suggestedUrl || shown?.suggestedEducationalResource || null;
     let restrictedPageUrl = `${RESTRICTED_PAGE_PATH}?url=${encodedUrl}`;
     if (suggestedUrl) {
       restrictedPageUrl += `&suggestedUrl=${encodeURIComponent(suggestedUrl)}`;
@@ -86,14 +111,17 @@ async function blockNavigation(
     if (checkResult.reason) {
       restrictedPageUrl += `&reason=${encodeURIComponent(checkResult.reason)}`;
     }
-    if (classification?.category) {
-      restrictedPageUrl += `&category=${encodeURIComponent(classification.category)}`;
+    if (shown?.category) {
+      restrictedPageUrl += `&category=${encodeURIComponent(shown.category)}`;
     }
-    if (classification?.safetyLevel) {
-      restrictedPageUrl += `&safetyLevel=${encodeURIComponent(classification.safetyLevel)}`;
+    if (shown?.safetyLevel) {
+      restrictedPageUrl += `&safetyLevel=${encodeURIComponent(shown.safetyLevel)}`;
     }
-    if (classification?.reason) {
-      restrictedPageUrl += `&classificationReason=${encodeURIComponent(classification.reason)}`;
+    if (shown?.reason) {
+      restrictedPageUrl += `&classificationReason=${encodeURIComponent(shown.reason)}`;
+    }
+    if (claimed) {
+      restrictedPageUrl += `&reasonPending=1`;
     }
     if (checkResult.matchedPattern) {
       restrictedPageUrl += `&matchedPattern=${encodeURIComponent(checkResult.matchedPattern)}`;
@@ -112,46 +140,65 @@ async function blockNavigation(
     // Tab may not be available yet
   }
 
-  await notifyRestrictedSite(settings, details.url, checkResult.reason, checkResult.matchedPattern, {
-    classification: classification ?? undefined,
+  // Exactly one Telegram message per block event. The owner of Stage 2 sends it in its `pending` layout and
+  // remembers where it went so the tail can edit it; everyone else sends the plain layout and never edits.
+  const notice: BlockNotice = {
+    sentAt: Date.now(),
     pageTitle,
+    reasonCode: checkResult.reason,
+    matchedPattern: checkResult.matchedPattern,
+  };
+  let noticeRef: TelegramNoticeRef | null = null;
+  const variant = selectNoticeVariant({
+    eligible: isRestrictedSiteNotifyEligible(settings),
+    planned: claimed !== null,
   });
+  if (variant === 'pending' && claimed) {
+    const sent = await notifyRestrictedSite(settings, details.url, checkResult.reason, checkResult.matchedPattern, {
+      classification: claimed,
+      pageTitle,
+      explanation: 'pending',
+      sentAt: notice.sentAt,
+    });
+    if (sent && sent.messageId !== null) {
+      try {
+        noticeRef = await recordNoticeRef({
+          url: details.url,
+          settings,
+          claimed,
+          sent: { chatId: sent.chatId, messageId: sent.messageId },
+          notice,
+        });
+      } catch (e) {
+        console.error('Could not record the Telegram notice reference:', e);
+      }
+    }
+  } else {
+    await notifyRestrictedSite(settings, details.url, checkResult.reason, checkResult.matchedPattern, {
+      classification: shown ?? undefined,
+      pageTitle,
+    });
+  }
 
   // Store restricted URL info for later history entry
   // Include suggested educational resource URL if available from classification
-  const suggestedUrl = classification?.suggestedUrl || classification?.suggestedEducationalResource || null;
+  const suggestedUrl = shown?.suggestedUrl || shown?.suggestedEducationalResource || null;
   
-  // Build detailed reason information
-  const reasonDetails: string[] = [];
-  
-  if (checkResult.reason === 'content-restricted' && classification) {
-    if (classification.category) {
-      reasonDetails.push(`Category: ${classification.category}`);
-    }
-    if (classification.safetyLevel) {
-      reasonDetails.push(`Safety Level: ${classification.safetyLevel}`);
-    }
-    if (classification.reason) {
-      reasonDetails.push(`Reason: ${classification.reason}`);
-    }
-  } else if (checkResult.reason === 'restricted' && checkResult.matchedPattern) {
-    reasonDetails.push(`Matches rule: ${checkResult.matchedPattern}`);
-  }
-  
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.LAST_RESTRICTED_URL]: {
-      url: details.url,
-      timestamp: details.timeStamp || Date.now(),
-      reason: checkResult.reason,
-      matchedPattern: checkResult.matchedPattern,
-      tabId: details.tabId,
-      suggestedUrl: suggestedUrl,
-      category: classification?.category || null,
-      safetyLevel: classification?.safetyLevel || null,
-      classificationReason: classification?.reason || null,
-      reasonDetails: reasonDetails.length > 0 ? reasonDetails : null
-    }
-  });
+  const restrictedInfo: RestrictedInfo = {
+    url: details.url,
+    timestamp: details.timeStamp || Date.now(),
+    reason: checkResult.reason,
+    matchedPattern: checkResult.matchedPattern,
+    tabId: details.tabId,
+    suggestedUrl: suggestedUrl,
+    category: shown?.category || null,
+    safetyLevel: shown?.safetyLevel || null,
+    classificationReason: shown?.reason || null,
+    reasonDetails: buildReasonDetails(checkResult.reason, checkResult.matchedPattern, shown),
+    // Only a block that owns Stage 2 carries the pending state; every other block page behaves as before.
+    ...(claimed ? { noUrlReason: claimed.noUrlReason ?? null, reasonPending: true, explanationStatus: 'pending' as const } : {}),
+  };
+  await chrome.storage.local.set({ [STORAGE_KEYS.LAST_RESTRICTED_URL]: restrictedInfo });
 
   const title = pageTitle.trim() ? pageTitle : 'Restricted Site';
 
@@ -168,10 +215,24 @@ async function blockNavigation(
     restricted: true,
     reason: checkResult.reason,
     matchedPattern: checkResult.matchedPattern || undefined,
-    classification: classification || undefined,
+    // History never keeps the Telegram message reference (a cached entry can still carry one)
+    classification: shown ? withoutTelegramNotice(shown) : undefined,
     visits: [visitInfo],
     visitCount: 1
   });
+
+  // Tail: wait for Stage 2 (keeps the service worker alive), then settle cache, history, block page and the notice.
+  if (claimed && explanation) {
+    const outcome = await waitForExplanation(explanation);
+    await finishExplanation({
+      url: details.url,
+      settings,
+      claimed,
+      outcome,
+      notice,
+      ref: noticeRef,
+    });
+  }
 }
 
 // Removed: blockNavigationAsync function is no longer needed
@@ -231,7 +292,7 @@ export async function handleCompletedNavigation(
     let classification: ClassificationResult | null = null;
     const isSiteIgnored = isIgnored(details.url, settings.ignoredPatterns || []);
     
-    if (!isSiteIgnored && settings.enableAIClassification && settings.aiApiToken) {
+    if (!isSiteIgnored && isAiClassificationActive(settings)) {
       // Check cache
       const cached = await getCachedClassification(details.url);
       if (cached) {
@@ -240,8 +301,9 @@ export async function handleCompletedNavigation(
         await addSystemLog('ai', `Using cached classification`, `URL: ${details.url}\nCached at: ${cached.cachedAt ? new Date(cached.cachedAt).toISOString() : 'unknown'}\nClassification: ${JSON.stringify({isEducational: cached.isEducational ?? cached.educational, category: cached.category, safetyLevel: cached.safetyLevel, suggestedUrl: cached.suggestedUrl ?? cached.suggestedEducationalResource}, null, 2)}`);
       } else {
         // Classify via API
-        await addSystemLog('ai', `Starting classification`, `URL: ${details.url}, Title: ${title || 'No title'}, Model: ${settings.aiModel || 'default'}`);
-        classification = await classifyContent(details.url, title, settings);
+        const mode = resolveAiMode(settings);
+        await addSystemLog('ai', `Starting classification`, `URL: ${details.url}, Title: ${title || 'No title'}, Mode: ${mode}, Model: ${mode === 'two-stage' ? settings.decisionModel : settings.aiModel || 'default'}`);
+        classification = await classifyPage(details.url, title, settings);
         if (classification && !classification.error) {
           await cacheClassification(details.url, classification);
           await addSystemLog('ai', `Classification completed and cached`, `URL: ${details.url}\nResult: ${JSON.stringify({isEducational: classification.isEducational ?? classification.educational, category: classification.category, safetyLevel: classification.safetyLevel, suggestedUrl: classification.suggestedUrl ?? classification.suggestedEducationalResource}, null, 2)}`);
@@ -353,22 +415,7 @@ async function handleRestrictedPageRedirect(
           const classification = await getCachedClassification(previousUrl);
           const suggestedUrl = classification?.suggestedUrl || classification?.suggestedEducationalResource || null;
           
-          // Build detailed reason information
-          const reasonDetails: string[] = [];
-          if (checkResult.reason === 'content-restricted' && classification) {
-            if (classification.category) {
-              reasonDetails.push(`Category: ${classification.category}`);
-            }
-            if (classification.safetyLevel) {
-              reasonDetails.push(`Safety Level: ${classification.safetyLevel}`);
-            }
-            if (classification.reason) {
-              reasonDetails.push(`Reason: ${classification.reason}`);
-            }
-          } else if (checkResult.reason === 'restricted' && checkResult.matchedPattern) {
-            reasonDetails.push(`Matches rule: ${checkResult.matchedPattern}`);
-          }
-          
+          const reasonDetails = buildReasonDetails(checkResult.reason, checkResult.matchedPattern, classification);
           restrictedInfo = {
             url: previousUrl,
             timestamp: details.timeStamp || Date.now(),
@@ -379,7 +426,7 @@ async function handleRestrictedPageRedirect(
             category: classification?.category || null,
             safetyLevel: classification?.safetyLevel || null,
             classificationReason: classification?.reason || null,
-            reasonDetails: reasonDetails.length > 0 ? reasonDetails : null
+            reasonDetails
           };
           // Save to storage for the restricted page to read
           await chrome.storage.local.set({

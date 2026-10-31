@@ -5,7 +5,10 @@
 import type { Settings, HistoryEntry, ClassificationResult, ClassificationCache } from '../types/index.js';
 import { DEFAULT_SETTINGS } from '../core/default-settings.ts';
 import { isClassificationUseful } from '../core/classification.ts';
-import { mergeHistoryEntries, upsertHistoryEntry, type NewHistoryEntry } from '../core/history-merge.ts';
+import { tryClaimExplanation } from '../core/explanation.ts';
+import { mergeHistoryEntries, patchHistoryClassification, upsertHistoryEntry, type NewHistoryEntry } from '../core/history-merge.ts';
+import type { RestrictedInfo } from '../core/restricted-info.ts';
+import { shouldClearAiError, type AiStage } from '../core/ai-errors.ts';
 import { migrateStoredSettings, normalizeSettingsShape, withDerivedClassificationLists } from '../core/settings-migration.ts';
 import { MAX_HISTORY_ENTRIES, STORAGE_KEYS, CLASSIFICATION_CACHE_TTL_MS } from './constants.js';
 
@@ -109,6 +112,16 @@ export async function getClassificationCache(): Promise<ClassificationCache> {
   return (result[STORAGE_KEYS.CLASSIFICATION_CACHE] as ClassificationCache) || {};
 }
 
+// Read-modify-write steps on the classification cache (and lastRestrictedUrl) run one at a time inside this
+// worker, so a claim, a Telegram reference, a Stage 2 result and a fresh classification cannot overwrite each other.
+let cacheWriteChain: Promise<unknown> = Promise.resolve();
+
+export function withCacheWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = cacheWriteChain.then(fn);
+  cacheWriteChain = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Save classification result to cache
  * Only caches if classification contains useful information
@@ -118,14 +131,16 @@ export async function cacheClassification(url: string, classification: Classific
   if (!isClassificationUseful(classification)) {
     return;
   }
-  
-  const cache = await getClassificationCache();
-  const domain = new URL(url).hostname;
-  cache[domain] = {
-    ...classification,
-    cachedAt: Date.now()
-  };
-  await chrome.storage.local.set({ [STORAGE_KEYS.CLASSIFICATION_CACHE]: cache });
+
+  await withCacheWrite(async () => {
+    const cache = await getClassificationCache();
+    const domain = new URL(url).hostname;
+    cache[domain] = {
+      ...classification,
+      cachedAt: Date.now()
+    };
+    await chrome.storage.local.set({ [STORAGE_KEYS.CLASSIFICATION_CACHE]: cache });
+  });
 }
 
 /**
@@ -145,4 +160,109 @@ export async function getCachedClassification(url: string): Promise<Classificati
   }
   
   return null;
+}
+
+/**
+ * Rewrites the cache entry of this URL's host when it is still the classification the caller started from
+ * (same classifiedAt). `cachedAt` is always kept, so a rewrite can never extend the 24 h lifetime.
+ * Must run inside withCacheWrite. Returns the stored entry, or null when nothing was written.
+ */
+async function rewriteCachedEntry(
+  url: string,
+  expectClassifiedAt: number | undefined,
+  rewrite: (entry: ClassificationResult) => ClassificationResult | null
+): Promise<ClassificationResult | null> {
+  let domain: string;
+  try {
+    domain = new URL(url).hostname;
+  } catch {
+    return null;
+  }
+  const cache = await getClassificationCache();
+  const entry = cache[domain];
+  if (!entry || entry.classifiedAt !== expectClassifiedAt) {
+    return null;
+  }
+  const rewritten = rewrite(entry);
+  if (!rewritten) {
+    return null;
+  }
+  const stored: ClassificationResult = { ...rewritten, cachedAt: entry.cachedAt };
+  cache[domain] = stored;
+  await chrome.storage.local.set({ [STORAGE_KEYS.CLASSIFICATION_CACHE]: cache });
+  return stored;
+}
+
+/**
+ * Marks the Stage 2 attempt of a cache entry as pending. Resolves the claimed entry, or null when the entry
+ * is gone, was replaced, or already has a generative state (at most one attempt per cache entry).
+ */
+export function claimExplanation(
+  url: string,
+  expectClassifiedAt: number | undefined,
+  now: number
+): Promise<ClassificationResult | null> {
+  return withCacheWrite(() => rewriteCachedEntry(url, expectClassifiedAt, (entry) => tryClaimExplanation(entry, now)));
+}
+
+/**
+ * Applies `updater` to the cache entry of this URL's host if it is still the same classification.
+ * Keeps cachedAt. Resolves the stored entry, or null when nothing was written.
+ */
+export function updateCachedClassification(
+  url: string,
+  expectClassifiedAt: number | undefined,
+  updater: (entry: ClassificationResult) => ClassificationResult
+): Promise<ClassificationResult | null> {
+  return withCacheWrite(() => rewriteCachedEntry(url, expectClassifiedAt, updater));
+}
+
+/**
+ * Replaces only the classification of the history entry with this exact URL (no-op when absent).
+ */
+export async function updateHistoryClassification(url: string, classification: ClassificationResult): Promise<void> {
+  const history = await getHistory();
+  const patched = patchHistoryClassification(history, url, classification);
+  if (patched === history) {
+    return;
+  }
+  await chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: patched });
+}
+
+/**
+ * Read-modify-write of lastRestrictedUrl, only while it still describes this URL.
+ */
+export function updateLastRestrictedUrl(url: string, updater: (info: RestrictedInfo) => RestrictedInfo): Promise<void> {
+  return withCacheWrite(async () => {
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.LAST_RESTRICTED_URL]);
+    const current = stored[STORAGE_KEYS.LAST_RESTRICTED_URL] as RestrictedInfo | undefined;
+    if (!current || current.url !== url) {
+      return;
+    }
+    const next = updater(current);
+    if (next !== current) {
+      await chrome.storage.local.set({ [STORAGE_KEYS.LAST_RESTRICTED_URL]: next });
+    }
+  });
+}
+
+/**
+ * Banner text shown on the options page.
+ */
+export async function setLastAiError(message: string): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.LAST_AI_ERROR]: message });
+}
+
+/**
+ * Clears the banner after a success. With a stage it clears only that stage's own text (a Stage 1 success
+ * must not erase a Stage 2 failure); without one (single-call mode) it always clears.
+ */
+export async function clearLastAiError(stage?: AiStage): Promise<void> {
+  if (stage) {
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.LAST_AI_ERROR]);
+    if (!shouldClearAiError(stored[STORAGE_KEYS.LAST_AI_ERROR] as string | undefined, stage)) {
+      return;
+    }
+  }
+  await chrome.storage.local.remove(STORAGE_KEYS.LAST_AI_ERROR);
 }

@@ -37,6 +37,11 @@ body {
   color: var(--text-primary);
 }
 
+/* First painted while the explanation is pending: stay put when the suggestion block appears later. */
+body.keep-position {
+  align-items: flex-start;
+}
+
 .container {
   background: var(--bg-primary);
   border-radius: var(--radius-2xl);
@@ -115,6 +120,25 @@ h1 {
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
   white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.reason-status {
+  margin-top: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-dark);
+  opacity: 0.85;
+}
+
+.reason-status:empty {
+  display: none;
+}
+
+.reason-note {
+  margin-top: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-dark);
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -124,7 +148,9 @@ h1 {
   }
   
   .reason-info strong,
-  .reason-details {
+  .reason-details,
+  .reason-status,
+  .reason-note {
     color: #ffcccb;
   }
 }
@@ -221,6 +247,17 @@ h1 {
   background: rgba(255, 255, 255, 0.5);
   border-radius: var(--radius-md);
   text-align: center;
+}
+
+.suggestion-caption {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.suggestion-caption:empty {
+  display: none;
 }
 
 @media (prefers-color-scheme: dark) {

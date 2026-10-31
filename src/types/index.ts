@@ -45,6 +45,12 @@ export interface Settings {
   parentPassword: string;
   passwordHint: string;
   enableSystemLogs: boolean;
+  decisionEnabled: boolean;
+  decisionApiToken: string;
+  decisionModel: string;
+  aiAudience: string;
+  enableAIExplanation: boolean;
+  aiExplanationPrompt: string;
 }
 
 export interface VisitInfo {
@@ -85,6 +91,10 @@ export interface ClassificationResult {
   educational?: boolean | null;
   ageAppropriate?: boolean | null;
   suggestedEducationalResource?: string | null;
+  source?: 'decision';
+  reasonSource?: 'synthesized' | 'model';
+  decision?: DecisionDetails;
+  generative?: GenerativeState;
 }
 
 export interface ClassificationCache {
@@ -95,4 +105,31 @@ export interface UrlCheckResult {
   restricted: boolean;
   reason: 'allowed' | 'restricted' | 'permitted' | string;
   matchedPattern: string | null;
+}
+
+export interface DecisionDetails {
+  requestedModel: string;
+  model: string;
+  probabilities: { isEducational: number; isAgeAppropriate: number; categoryFits?: number };
+  categoryProbability: number | null;
+  safetyProbability: number | null;
+  latencyMs: number;
+  cost?: number;
+}
+
+export interface TelegramNoticeRef {
+  chatId: string;
+  messageId: number;
+  keyboardUrl: string | null;
+  finalized: boolean;
+  text?: string;
+  fallbackText?: string;
+}
+
+export interface GenerativeState {
+  status: 'pending' | 'done' | 'failed';
+  attemptedAt: number;
+  model?: string;
+  error?: string;
+  telegram?: TelegramNoticeRef;
 }

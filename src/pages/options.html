@@ -127,25 +127,31 @@
           
           <div class="form-group" id="contentRestrictionsGroup">
             <label for="newCategoryInput">Categories</label>
-            <p class="help-text">Categories the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction.</p>
+            <p class="help-text">Categories the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction. The optional description helps the decision model choose the item; built-in items already have one.</p>
             <div class="pattern-input-group">
               <div class="add-pattern">
                 <input type="text" id="newCategoryInput" placeholder="Add category..." class="pattern-input" aria-label="New category name">
                 <button type="button" id="addCategoryBtn" class="btn btn-primary">Add</button>
               </div>
             </div>
+            <p class="help-text">Describe how this item differs from the others, so the decision model can tell them apart.</p>
+            <p class="help-text" id="categoryCountHint"></p>
+            <p class="help-text warning-message hidden" id="categoryLimitWarning" role="status"></p>
             <div class="pattern-list" id="categoryItemsList"></div>
           </div>
 
           <div class="form-group" id="safetyLevelsGroup">
             <label for="newSafetyLevelInput">Safety Levels</label>
-            <p class="help-text">Safety levels the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction.</p>
+            <p class="help-text">Safety levels the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction. The optional description helps the decision model choose the item; built-in items already have one.</p>
             <div class="pattern-input-group">
               <div class="add-pattern">
                 <input type="text" id="newSafetyLevelInput" placeholder="Add level..." class="pattern-input" aria-label="New safety level">
                 <button type="button" id="addSafetyLevelBtn" class="btn btn-primary">Add</button>
               </div>
             </div>
+            <p class="help-text">Describe how this item differs from the others, so the decision model can tell them apart.</p>
+            <p class="help-text" id="safetyCountHint"></p>
+            <p class="help-text warning-message hidden" id="safetyLimitWarning" role="status"></p>
             <div class="pattern-list" id="safetyLevelItemsList"></div>
           </div>
         </section>
@@ -228,9 +234,10 @@
 
       <!-- AI Classification Tab -->
       <div class="tab-content" id="tab-ai">
-        <section class="section">
-          <h2>AI Models API</h2>
-          
+        <section class="section" id="aiMasterSection">
+          <h2>AI Classification</h2>
+          <p class="section-description">Classifies the pages your child opens (by address and title only) and blocks them according to the Content Restrictions on the Restrictions tab.</p>
+
           <div class="form-group">
             <label class="toggle-switch">
               <input type="checkbox" id="enableAIClassification" class="toggle-input">
@@ -239,11 +246,67 @@
             </label>
           </div>
 
+          <p class="help-text" id="aiModeLine" role="status" aria-live="polite"></p>
+
           <div id="aiErrorDisplay" class="help-text error-message hidden">
             <div class="error-display-container">
               <span id="aiErrorText"></span>
               <button type="button" id="clearAIErrorBtn" class="btn btn-secondary btn-small">Clear</button>
             </div>
+          </div>
+        </section>
+
+        <section class="section" id="decisionModelSection">
+          <h2>Decision model (fast verdict)</h2>
+          <p class="section-description">Gives a fast verdict (educational? age-appropriate? which category and safety level?) so a page can be blocked quickly. The extension then decides block or allow from your Content Restrictions lists. Uses OpenRouter Decisions models and an OpenRouter key.</p>
+
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="decisionEnabled" class="toggle-input" aria-describedby="decisionEnabledHelp">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Use a decision model</span>
+            </label>
+            <p class="help-text" id="decisionEnabledHelp">When off, the extension uses the single-call mode with the explanation model below. Needs a key and a pinned model.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="decisionApiToken">OpenRouter key (decision model)</label>
+            <input type="password" id="decisionApiToken" class="input" placeholder="sk-or-v1-xxxxxxxxxxxx" autocomplete="off" aria-describedby="decisionTokenHelp decisionTokenReuse decisionTokenError">
+            <p class="help-text" id="decisionTokenHelp">Stored locally in this browser as plain text, like the other tokens, and included in the settings export. Get a key at https://openrouter.ai/keys.</p>
+            <p class="help-text" id="decisionTokenReuse"></p>
+            <p class="help-text error-message hidden" id="decisionTokenError" role="alert"></p>
+          </div>
+
+          <div class="form-group">
+            <label for="decisionModel">Model</label>
+            <div class="field-with-action">
+              <select id="decisionModel" class="select" aria-describedby="decisionModelInfo decisionModelNote decisionModelHelp decisionModelError">
+                <option value="">Select a decision model...</option>
+              </select>
+              <button type="button" id="loadDecisionModelsBtn" class="btn btn-secondary">Load decision models</button>
+            </div>
+            <div class="margin-top-sm">
+              <button type="button" id="testDecisionModelBtn" class="btn btn-secondary">Test model</button>
+            </div>
+            <p class="help-text" id="decisionModelTestResult" role="status" aria-live="polite"></p>
+            <p class="help-text" id="decisionModelInfo" aria-live="polite"></p>
+            <p class="help-text hidden" id="decisionModelNote"></p>
+            <p class="help-text" id="decisionModelHelp">Pick a versioned (pinned) build such as liquid/d1.1-20261027. Aliases like ~vendor/model-latest or ids ending in -latest are not accepted, because their behaviour can change without notice. Uses the audience set below. Recommended: typesafe/jev-1.14-20261014. Models marked ✓ were checked with this extension. Other models may reject the request; press "Test model" before saving.</p>
+            <p class="help-text error-message hidden" id="decisionModelError" role="alert"></p>
+          </div>
+        </section>
+
+        <section class="section" id="explanationModelSection">
+          <h2>Explanation model (reason + educational suggestion)</h2>
+          <p class="section-description">Writes the human-readable reason and suggests an educational page. Runs only for pages the decision model blocked, after the page is already blocked. In single-call mode this model also classifies every page.</p>
+
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableAIExplanation" class="toggle-input" aria-describedby="aiExplanationHelp">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Write a reason and suggest an educational page for blocked sites</span>
+            </label>
+            <p class="help-text" id="aiExplanationHelp">When off, blocked pages show a short automatic reason (for example: Category "Games" is blocked in the settings.) and no suggestion.</p>
           </div>
 
           <div class="form-group">
@@ -257,8 +320,9 @@
 
           <div class="form-group">
             <label for="aiApiToken">API Token</label>
-            <input type="password" id="aiApiToken" class="input" placeholder="Enter API token">
+            <input type="password" id="aiApiToken" class="input" placeholder="Enter API token" aria-describedby="tokenHelpText aiTokenStorageNote">
             <p class="help-text" id="tokenHelpText">Get token on GitHub: Settings → Developer settings → Personal access tokens → Tokens (classic)</p>
+            <p class="help-text" id="aiTokenStorageNote">Stored locally in this browser as plain text, like the other tokens, and included in the settings export.</p>
           </div>
 
           <div class="form-group">
@@ -270,32 +334,56 @@
               <button type="button" id="loadModelsBtn" class="btn btn-secondary">Load Available Models</button>
             </div>
           </div>
+
+          <p class="help-text warning-message hidden" id="explanationNoTokenWarning">Without a token for the explanation model, blocked pages get a short automatic reason and no suggestion.</p>
+
+          <div class="form-group">
+            <label for="aiExplanationPrompt">Explanation prompt</label>
+            <textarea id="aiExplanationPrompt" rows="6" class="textarea code-textarea" aria-describedby="aiExplanationPromptHelp"></textarea>
+            <p class="help-text" id="aiExplanationPromptHelp">Placeholders: {url} {title} {audience} {category} {safetyLevel}. Describe what you want explained; the extension adds the reply format itself, so do not write JSON instructions here. Used only in two-stage mode while explanations are on.</p>
+            <button type="button" id="resetExplanationPromptBtn" class="btn btn-secondary btn-small">Restore default prompt</button>
+          </div>
+
+          <div class="prompt-preview">
+            <label class="form-group-label" id="explanationPromptPreviewLabel">Prompt preview (example values)</label>
+            <div id="explanationPromptPreview" class="preview-box" aria-labelledby="explanationPromptPreviewLabel"></div>
+          </div>
+        </section>
+
+        <section class="section" id="audienceSection">
+          <h2>Audience</h2>
+          <p class="section-description">Who you are protecting. It is sent to the decision model and used in the explanation prompt and the single-call prompt as {audience}.</p>
+
+          <div class="form-group">
+            <label for="aiAudiencePreset">Who are you protecting?</label>
+            <select id="aiAudiencePreset" class="select">
+              <option value="children">Children (general)</option>
+              <option value="children aged 6-10">Elementary school (6–10 years)</option>
+              <option value="teenagers aged 13-16">Teenagers (13–16 years)</option>
+              <option value="children; be strict: anything not clearly suitable counts as unsuitable">Strict: only clearly suitable content</option>
+              <option value="">Custom…</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="aiAudience">Audience description</label>
+            <input type="text" id="aiAudience" class="input" maxlength="200" aria-describedby="aiAudienceHelp">
+            <p class="help-text" id="aiAudienceHelp">Sent to the decision model and used in the explanation prompt ({audience}). Up to 200 characters. Example: children aged 8-10.</p>
+          </div>
         </section>
 
         <section class="section">
-          <h2>Classification Prompt</h2>
-          <p class="section-description">Configure the prompt for content classification. Use {url} and {title} variables</p>
-          
-          <div class="form-group">
-            <label for="promptTemplate">Prompt Templates</label>
-            <div class="field-with-action">
-              <select id="promptTemplate" class="select">
-                <option value="">Select a template...</option>
-                <option value="default">Default (Universal)</option>
-                <option value="young">For Elementary School (6-10 years)</option>
-                <option value="teen">For Teens (13-16 years)</option>
-                <option value="strict">Strict Mode</option>
-              </select>
-              <button type="button" id="applyTemplateBtn" class="btn btn-secondary">Apply</button>
-            </div>
-          </div>
+          <details id="singlePromptDetails">
+            <summary>Single-call prompt (used only when no decision model is set)</summary>
+            <p class="section-description">Used only when no decision model is set. Placeholders: {url} {title} {audience}.</p>
+            <textarea id="aiClassificationPrompt" rows="8" class="textarea code-textarea" placeholder="Enter classification prompt..." aria-label="Single-call classification prompt"></textarea>
+            <button type="button" id="resetClassificationPromptBtn" class="btn btn-secondary btn-small">Restore default prompt</button>
 
-          <textarea id="aiClassificationPrompt" rows="8" class="textarea code-textarea" placeholder="Enter classification prompt..."></textarea>
-          
-          <div class="prompt-preview">
-            <label class="form-group-label">Prompt Preview:</label>
-            <div id="promptPreview" class="preview-box"></div>
-          </div>
+            <div class="prompt-preview">
+              <label class="form-group-label" id="promptPreviewLabel">Prompt preview (example values)</label>
+              <div id="promptPreview" class="preview-box" aria-labelledby="promptPreviewLabel"></div>
+            </div>
+          </details>
         </section>
       </div>
 

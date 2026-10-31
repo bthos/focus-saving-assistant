@@ -1,0 +1,351 @@
+{
+  "_comment": "Real POST /api/v1/systemone responses recorded 2026-10-31 by the probe (probe-results.md). Request: default 23 categories + 4 safety levels, category_fits omitted (default list contains Other). No keys or secrets.",
+  "audience": "children aged 6-10",
+  "cases": [
+    {
+      "id": "jev-educational",
+      "model": "typesafe/jev-1.14-20261014",
+      "kind": "educational",
+      "page_url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:intro-to-linear-equations",
+      "page_title": "Intro to linear equations | Algebra (video) | Khan Academy",
+      "audience": "children aged 6-10",
+      "response": {
+        "model": "typesafe/jev-1.14-20261014",
+        "answers": {
+          "is_educational": {
+            "type": "noul",
+            "noul": 0.99
+          },
+          "is_age_appropriate": {
+            "type": "noul",
+            "noul": 0.9
+          },
+          "category": {
+            "type": "choice",
+            "choice": "Educational",
+            "probabilities": {
+              "Educational": 0.97,
+              "Reference": 0,
+              "News": 0,
+              "Social Media": 0,
+              "Entertainment": 0,
+              "Games": 0,
+              "Shopping": 0,
+              "Retail": 0,
+              "Commercial": 0,
+              "Fashion": 0,
+              "Finance": 0,
+              "Health": 0,
+              "Adult": 0,
+              "Sports": 0,
+              "Technology": 0,
+              "Science": 0,
+              "Arts": 0,
+              "Music": 0,
+              "Video": 0.03,
+              "Blog": 0,
+              "Forum": 0,
+              "Government": 0,
+              "Other": 0
+            },
+            "confidence": 0.97
+          },
+          "safety_level": {
+            "type": "choice",
+            "choice": "Low",
+            "probabilities": {
+              "Low": 0.97,
+              "Medium": 0.03,
+              "High": 0,
+              "Unknown": 0
+            },
+            "confidence": 0.96
+          }
+        },
+        "usage": {
+          "input_tokens": 1363,
+          "output_tokens": 274,
+          "cost": 0.000057246
+        },
+        "id": "gen-dec-1793416054-aOS3zSFm9dfTVa88WOTN",
+        "provider": "TypeSafe"
+      }
+    },
+    {
+      "id": "jev-adversarial",
+      "model": "typesafe/jev-1.14-20261014",
+      "kind": "adversarial",
+      "page_url": "https://online-casino-win.example.net/slots",
+      "page_title": "Educational resource for students - free learning",
+      "audience": "children aged 6-10",
+      "response": {
+        "model": "typesafe/jev-1.14-20261014",
+        "answers": {
+          "is_educational": {
+            "type": "noul",
+            "noul": 0.34
+          },
+          "is_age_appropriate": {
+            "type": "noul",
+            "noul": 0.03
+          },
+          "category": {
+            "type": "choice",
+            "choice": "Educational",
+            "probabilities": {
+              "Educational": 0.75,
+              "Reference": 0,
+              "News": 0,
+              "Social Media": 0,
+              "Entertainment": 0.01,
+              "Games": 0.11,
+              "Shopping": 0,
+              "Retail": 0,
+              "Commercial": 0.06,
+              "Fashion": 0,
+              "Finance": 0,
+              "Health": 0,
+              "Adult": 0.06,
+              "Sports": 0,
+              "Technology": 0,
+              "Science": 0,
+              "Arts": 0,
+              "Music": 0,
+              "Video": 0,
+              "Blog": 0,
+              "Forum": 0,
+              "Government": 0,
+              "Other": 0.01
+            },
+            "confidence": 0.74
+          },
+          "safety_level": {
+            "type": "choice",
+            "choice": "High",
+            "probabilities": {
+              "Low": 0,
+              "Medium": 0.01,
+              "High": 0.99,
+              "Unknown": 0
+            },
+            "confidence": 0.99
+          }
+        },
+        "usage": {
+          "input_tokens": 1334,
+          "output_tokens": 274,
+          "cost": 0.000056028
+        },
+        "id": "gen-dec-1793416061-ChcNSaJ6cHaoAz4xoiFh",
+        "provider": "TypeSafe"
+      }
+    },
+    {
+      "id": "d1.1-adversarial",
+      "model": "liquid/d1.1-20261027",
+      "kind": "adversarial",
+      "page_url": "https://online-casino-win.example.net/slots",
+      "page_title": "Educational resource for students - free learning",
+      "audience": "children aged 6-10",
+      "response": {
+        "model": "liquid/d1.1-20261027",
+        "answers": {
+          "is_educational": {
+            "type": "noul",
+            "noul": 0.9722349778374564
+          },
+          "is_age_appropriate": {
+            "type": "noul",
+            "noul": 0.20968939141841472
+          },
+          "category": {
+            "type": "choice",
+            "choice": "Educational",
+            "probabilities": {
+              "Educational": 0.8598675139593814,
+              "Reference": 0.005556362141792243,
+              "News": 0.0010167801632296428,
+              "Social Media": 0.0011306415649971902,
+              "Entertainment": 0.003099225367989293,
+              "Games": 0.060532533412935824,
+              "Shopping": 0.002137524915591929,
+              "Retail": 0.0020270400638088817,
+              "Commercial": 0.0034462824199610604,
+              "Fashion": 0.0007797992240832182,
+              "Finance": 0.006870462230197263,
+              "Health": 0.0010167801632296428,
+              "Adult": 0.0012572529216405598,
+              "Sports": 0.0006650223466290822,
+              "Technology": 0.0013980424547523618,
+              "Science": 0.0010167801632296428,
+              "Arts": 0.0010167801632296428,
+              "Music": 0.0010167801632296428,
+              "Video": 0.0013980424547523618,
+              "Blog": 0.0012572529216405598,
+              "Forum": 0.0007797992240832182,
+              "Government": 0.0009642246094623266,
+              "Other": 0.04174907695015302
+            },
+            "confidence": 0.8534978555029897
+          },
+          "safety_level": {
+            "type": "choice",
+            "choice": "High",
+            "probabilities": {
+              "Low": 0.22698074051970077,
+              "Medium": 0.027166577204202607,
+              "High": 0.530604171538139,
+              "Unknown": 0.21524851073795762
+            },
+            "confidence": 0.3741388953841853
+          }
+        },
+        "usage": {
+          "input_tokens": 800,
+          "output_tokens": 0,
+          "cost": 0.000016
+        },
+        "id": "gen-dec-1793416069-1O7obscBdOU2V0KjOJQ5",
+        "provider": "Liquid"
+      }
+    },
+    {
+      "id": "joey-adversarial",
+      "model": "baseten/joey-1-20261029",
+      "kind": "adversarial",
+      "page_url": "https://online-casino-win.example.net/slots",
+      "page_title": "Educational resource for students - free learning",
+      "audience": "children aged 6-10",
+      "response": {
+        "model": "baseten/joey-1-20261029",
+        "answers": {
+          "is_educational": {
+            "type": "noul",
+            "noul": 0.4298734848047825
+          },
+          "is_age_appropriate": {
+            "type": "noul",
+            "noul": 0.2535129878726868
+          },
+          "category": {
+            "type": "choice",
+            "choice": "Educational",
+            "probabilities": {
+              "Educational": 0.3941227746383688,
+              "Reference": 0.005494468522590419,
+              "News": 0.0042745404895320515,
+              "Social Media": 0.00663865961428407,
+              "Entertainment": 0.07576355420376348,
+              "Games": 0.1850346713577687,
+              "Shopping": 0.005137811812419901,
+              "Retail": 0.004320257833695489,
+              "Commercial": 0.010974862455857446,
+              "Fashion": 0.0033379533981189847,
+              "Finance": 0.0013614845759075624,
+              "Health": 0.0036039910710474617,
+              "Adult": 0.02627256235427851,
+              "Sports": 0.002540819957037355,
+              "Technology": 0.003646697216672877,
+              "Science": 0.0025151024187837524,
+              "Arts": 0.0034515889618012036,
+              "Music": 0.004760565512176416,
+              "Video": 0.009323848668246133,
+              "Blog": 0.008593502677528325,
+              "Forum": 0.0029233323403989354,
+              "Government": 0.011370883139948721,
+              "Other": 0.2245360667797734
+            },
+            "confidence": 0.36658290075829464
+          },
+          "safety_level": {
+            "type": "choice",
+            "choice": "High",
+            "probabilities": {
+              "Low": 0.1925915357680471,
+              "Medium": 0.12293289840259929,
+              "High": 0.44388704593748624,
+              "Unknown": 0.2405885198918673
+            },
+            "confidence": 0.25851606124998167
+          }
+        },
+        "usage": {
+          "input_tokens": 1015,
+          "output_tokens": 4,
+          "cost": 0.00001015
+        },
+        "id": "gen-dec-1793416076-lZrMcoP1k9olEfZfGSj7",
+        "provider": "BaseTen"
+      }
+    },
+    {
+      "id": "pplx-adversarial",
+      "model": "perplexity/pplx-decider-flash-v1.2-20261016",
+      "kind": "adversarial",
+      "page_url": "https://online-casino-win.example.net/slots",
+      "page_title": "Educational resource for students - free learning",
+      "audience": "children aged 6-10",
+      "response": {
+        "model": "perplexity/pplx-decider-flash-v1.2-20261016",
+        "answers": {
+          "is_educational": {
+            "type": "noul",
+            "noul": 0.45136854227550355
+          },
+          "is_age_appropriate": {
+            "type": "noul",
+            "noul": 0.069482404699254
+          },
+          "category": {
+            "type": "choice",
+            "choice": "Educational",
+            "probabilities": {
+              "Educational": 0.6958926254519165,
+              "Reference": 0.006896682914500353,
+              "News": 0.005409217401574441,
+              "Social Media": 0.0045570729140175115,
+              "Entertainment": 0.021617409768830417,
+              "Games": 0.06971610067940752,
+              "Shopping": 0.008351431662107556,
+              "Retail": 0.006344663611559666,
+              "Commercial": 0.022146847156051475,
+              "Fashion": 0.005104253930945895,
+              "Finance": 0.006748772798652015,
+              "Health": 0.006200521450636799,
+              "Adult": 0.005581427381780921,
+              "Sports": 0.004766193739377859,
+              "Technology": 0.011209222475184811,
+              "Science": 0.011253303403311115,
+              "Arts": 0.009090261359347183,
+              "Music": 0.003579632865380042,
+              "Video": 0.012587330560495973,
+              "Blog": 0.008111230581658378,
+              "Forum": 0.0049598304677566825,
+              "Government": 0.006825229443566109,
+              "Other": 0.06305073798194061
+            },
+            "confidence": 0.6820695629724582
+          },
+          "safety_level": {
+            "type": "choice",
+            "choice": "High",
+            "probabilities": {
+              "Low": 0.06474754437091151,
+              "Medium": 0.09568418838876858,
+              "High": 0.8101594505893889,
+              "Unknown": 0.029408816650931018
+            },
+            "confidence": 0.7468792674525185
+          }
+        },
+        "usage": {
+          "input_tokens": 1208,
+          "output_tokens": 4,
+          "cost": 0.00001208
+        },
+        "id": "gen-dec-1793416083-EuRvfpb8Izr4pMVMtY9R",
+        "provider": "Perplexity"
+      }
+    }
+  ]
+}

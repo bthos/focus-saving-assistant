@@ -5,6 +5,17 @@
 
 import type { Settings } from '../types/index.ts';
 import { DEFAULT_SETTINGS } from './default-settings.ts';
+import { normalizeClassificationItems } from './classification-limits.ts';
+
+const AUDIENCE_MAX_CHARS = 200;
+
+export function deriveAudience(prompt: string | undefined | null): string {
+  const p = (prompt ?? '').trim();
+  if (p.startsWith('Evaluate if this site is suitable for children aged 6-10')) return 'children aged 6-10';
+  if (p.startsWith('Classify content by educational value for teens aged 13-16')) return 'teenagers aged 13-16';
+  if (p.startsWith('Determine if this content is exclusively educational and safe for children')) return 'children; be strict: anything not clearly suitable counts as unsuitable';
+  return 'children';
+}
 
 /** Integer local hour 0..23, else the default for that field. */
 function normalizeHour(value: unknown, fallback: number): number {
@@ -61,6 +72,16 @@ export function normalizeSettingsShape(merged: Settings): Settings {
 
   out.timeLimits = normalizeTimeLimits(out.timeLimits);
 
+  out.categoryItems = normalizeClassificationItems(out.categoryItems);
+  out.safetyLevelItems = normalizeClassificationItems(out.safetyLevelItems);
+  if (typeof out.decisionEnabled !== 'boolean') out.decisionEnabled = DEFAULT_SETTINGS.decisionEnabled;
+  if (typeof out.enableAIExplanation !== 'boolean') out.enableAIExplanation = DEFAULT_SETTINGS.enableAIExplanation;
+  if (typeof out.decisionApiToken !== 'string') out.decisionApiToken = '';
+  if (typeof out.decisionModel !== 'string') out.decisionModel = '';
+  const audience = typeof out.aiAudience === 'string' ? out.aiAudience.trim().slice(0, AUDIENCE_MAX_CHARS) : '';
+  out.aiAudience = audience || DEFAULT_SETTINGS.aiAudience;
+  if (typeof out.aiExplanationPrompt !== 'string' || !out.aiExplanationPrompt.trim()) out.aiExplanationPrompt = DEFAULT_SETTINGS.aiExplanationPrompt;
+
   return out;
 }
 
@@ -99,7 +120,9 @@ function deriveFromItems(items: Array<{ name: string; restricted: boolean }>): {
  * defaults merged in, legacy available/restricted lists turned into items, shapes normalised.
  */
 export function migrateStoredSettings(stored: Settings): Settings {
+  const derivedAudience = typeof stored.aiAudience === 'string' ? undefined : deriveAudience(stored.aiClassificationPrompt);
   let merged: Settings = { ...DEFAULT_SETTINGS, ...stored };
+  if (derivedAudience !== undefined) merged.aiAudience = derivedAudience;
 
   // Migration: legacy availableCategories/restrictedCategories -> categoryItems
   if (!merged.categoryItems?.length && (merged.availableCategories?.length || merged.restrictedCategories?.length)) {
