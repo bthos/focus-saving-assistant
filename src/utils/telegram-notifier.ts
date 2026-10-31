@@ -13,6 +13,8 @@ import {
   type QueuedNotification,
   type SuspiciousNotificationData,
 } from '../core/notification-queue.ts';
+import { formatHour, isQuietHoursNotifyEligible, type AllowedHours } from '../core/quiet-hours.ts';
+import type { WeeklyStats } from '../core/weekly-report.ts';
 
 const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
 
@@ -516,26 +518,18 @@ export async function notifyAllowedPathTelegram(
 }
 
 /**
- * Sends a weekly report
+ * Sends a weekly report. Resolves true only if Telegram accepted the message.
  */
-export async function sendWeeklyReport(settings: Settings, stats: {
-  totalVisits: number;
-  educationalVisits: number;
-  educationalPercentage: number;
-  restrictedAttempts: number;
-  topCategories: string[];
-  periodStart: string;
-  periodEnd: string;
-}): Promise<void> {
+export async function sendWeeklyReport(settings: Settings, stats: WeeklyStats): Promise<boolean> {
   if (!settings.enableTelegramNotifications || !settings.telegramBotToken || !settings.telegramChatId) {
-    return;
+    return false;
   }
   
   // Check if weekly report notifications are enabled
   const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
   if (!notificationTypes.includes('weekly')) {
     console.log('Weekly report notifications disabled');
-    return;
+    return false;
   }
   
   const userProfile = escapeMarkdown(settings.userProfileName || 'Unknown User');
@@ -553,38 +547,38 @@ export async function sendWeeklyReport(settings: Settings, stats: {
     `🏷️ *Top categories:* ${topCategories}\n\n` +
     `📅 *Period:* ${escapeMarkdown(stats.periodStart)} - ${escapeMarkdown(stats.periodEnd)}`;
   
-  await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
+  return await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
 }
 
 /**
- * Sends a notification about time limit reached
+ * Sends the once-per-quiet-period notice that a site was blocked outside the allowed hours.
+ * Hostname only (no path, query or title). Resolves true only if Telegram accepted the message.
  */
-export async function notifyTimeLimitReached(
-  settings: Settings, 
-  usedMinutes: number, 
-  limitMinutes: number
-): Promise<void> {
-  if (!settings.enableTelegramNotifications || !settings.telegramBotToken || !settings.telegramChatId) {
-    return;
+export async function notifyQuietHoursAttempt(
+  settings: Settings,
+  url: string,
+  allowedHours: AllowedHours
+): Promise<boolean> {
+  if (!isQuietHoursNotifyEligible(settings)) {
+    return false;
   }
-  
-  // Check if time limit notifications are enabled
-  const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
-  if (!notificationTypes.includes('timeLimit')) {
-    console.log('Time limit notifications disabled');
-    return;
+
+  let host: string;
+  try {
+    host = new URL(url).hostname.replace(/`/g, '') || 'unknown site';
+  } catch {
+    host = 'unknown site';
   }
-  
+
   const userProfile = escapeMarkdown(settings.userProfileName || 'Unknown User');
-  const percentage = Math.round((usedMinutes / limitMinutes) * 100);
-  
-  // Format the message with better visual hierarchy
-  const message = `⏰ *Daily Time Limit Reached*\n\n` +
+  const message = `🌙 *Quiet Hours — Access Blocked*\n\n` +
     `👤 *User:* ${userProfile}\n` +
-    `⏱️ *Usage:* ${usedMinutes} / ${limitMinutes} minutes (${percentage}%)\n\n` +
+    `🌐 *Site:* \`${host}\`\n` +
+    `⏰ *Allowed hours:* ${formatHour(allowedHours.start)} – ${formatHour(allowedHours.end)}\n\n` +
+    `Further attempts are blocked without notice until ${formatHour(allowedHours.start)}.\n\n` +
     `🕐 ${formatTimestamp()}`;
-  
-  await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
+
+  return await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
 }
 
 /**

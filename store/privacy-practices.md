@@ -2,11 +2,11 @@
 
 Answers for the **Privacy practices** tab. Structure per https://developer.chrome.com/docs/webstore/cws-dashboard-privacy (checked 2026-10-30): single purpose, permission justifications, remote code, data usage (collection checkboxes + Limited Use certification), privacy policy URL. Policy basis: https://developer.chrome.com/docs/webstore/program-policies/limited-use and https://developer.chrome.com/docs/webstore/program-policies/user-data-faq.
 
-Manifest basis: `src/manifest.json` v1.0.54. Every permission and host permission in the manifest has an entry below (8 permissions + 4 host patterns).
+Manifest basis: `src/manifest.json` v1.0.56. Every permission and host permission in the manifest has an entry below (8 permissions + 4 host patterns).
 
 ## 1. Single purpose description
 
-> Help a parent or learner stay focused while browsing: apply user-defined allow/restrict lists to websites, keep a local log of visited pages, and optionally classify pages as educational and notify the user via Telegram.
+> Help a parent or learner stay focused while browsing: apply user-defined allow/restrict lists to websites, optionally block all browsing outside user-set quiet hours, keep a local log of visited pages, and optionally classify pages as educational and notify the user via Telegram (including a weekly summary).
 
 (One narrow purpose: *browsing focus control*. AI classification and Telegram alerts are optional parts of that purpose, not separate products.)
 
@@ -14,14 +14,14 @@ Manifest basis: `src/manifest.json` v1.0.54. Every permission and host permissio
 
 | Permission | Justification (paste) | Evidence |
 |---|---|---|
-| `webNavigation` | Detects top-frame navigations so the extension can check the URL against the user's allow/restrict lists before the page loads (`onBeforeNavigate`) and record/classify it when it finishes (`onCompleted`). Sub-frames are ignored. | `src/background/service-worker.ts:86-87`, `src/background/navigation-handler.ts:17-23,174-180` |
+| `webNavigation` | Detects top-frame navigations so the extension can check the URL against the user's allow/restrict lists before the page loads (`onBeforeNavigate`) and record/classify it when it finishes (`onCompleted`). If the user turns on quiet hours, the same events plus `onHistoryStateUpdated` (single-page apps that change address without a page load) are used to redirect pages opened outside the allowed hours. Sub-frames are ignored. | `src/background/service-worker.ts:126-130`, `src/background/navigation-handler.ts:19-25,184-190`, `src/background/quiet-hours-handler.ts:31-73,109-122` |
 | `storage` | Stores the user's settings (lists, tokens, messages), the local browsing log, classification cache and system log in `chrome.storage.local`. Nothing is synced to a developer server. | `src/utils/storage.ts:16-101`, `src/utils/system-logger.ts:31-48` |
-| `tabs` | Reads the page title and incognito flag of the navigating tab (`tabs.get`) for the log, AI check and notification, and redirects a blocked tab to the extension's restricted page (`tabs.update`). | `src/background/navigation-handler.ts:196-198,92` |
-| `history` | Imports the user's existing browser history (URL, title, visit times) into the extension's local log every 5 minutes, so the log is complete even for pages visited while the service worker was idle. Read-only; the extension never deletes browser history. | `src/utils/history-sync.ts:39,72`, `src/background/service-worker.ts:53`, `src/utils/constants.ts:9` |
-| `alarms` | Schedules the 5-minute history sync and the optional Telegram command polling. MV3 service workers cannot keep timers alive. | `src/background/service-worker.ts:36,53,67-70` |
+| `tabs` | Reads the page title and incognito flag of the navigating tab (`tabs.get`) for the log, AI check and notification, and redirects a blocked tab to the extension's restricted page (`tabs.update`). | `src/background/navigation-handler.ts:211-213,102`, `src/background/quiet-hours-handler.ts:56` |
+| `history` | Imports the user's existing browser history (URL, title, visit times) into the extension's local log every 5 minutes, so the log is complete even for pages visited while the service worker was idle. Read-only; the extension never deletes browser history. | `src/utils/history-sync.ts:39,72`, `src/background/service-worker.ts:79`, `src/utils/constants.ts:9` |
+| `alarms` | Schedules the 5-minute history sync, the optional Telegram command polling and the hourly check that decides whether the weekly report is due. MV3 service workers cannot keep timers alive. | `src/background/service-worker.ts:40,59,79`, `src/background/weekly-report-handler.ts:87` |
 | `declarativeNetRequest` | Installs redirect rules built from the user's restricted patterns so a restricted site is replaced by the extension's restricted page at network level. | `src/background/rules-manager.ts:47-113` |
 | `declarativeNetRequestWithHostAccess` | Same rules; this variant is the one that permits `redirect` actions on hosts the extension already has access to. | `src/background/rules-manager.ts:64-67,84-87` |
-| `identity` | Used once, on the options page, to pre-fill the child/user display name via `chrome.identity.getProfileUserInfo` when the user presses "Detect Automatically". | `src/pages/options.ts:853-875` |
+| `identity` | Used once, on the options page, to pre-fill the child/user display name via `chrome.identity.getProfileUserInfo` when the user presses "Detect Automatically". | `src/pages/options.ts:908-930` |
 
 ### Host permissions
 
@@ -43,15 +43,15 @@ Category names as listed in a secondary source (https://moderok.dev/blog/chrome-
 
 | Category | Check? | Why |
 |---|---|---|
-| Personally identifiable information | No | User display name entered in settings (`userProfileName`) is included in every Telegram message (`src/utils/telegram-notifier.ts:315,332,345`); optional auto-fill reads Chrome profile email/id (`src/pages/options.ts:866-872`). |
+| Personally identifiable information | No | User display name entered in settings (`userProfileName`) is included in every Telegram message (`src/utils/telegram-notifier.ts:325,401,443,535,573`); optional auto-fill reads Chrome profile email/id (`src/pages/options.ts:921-927`). |
 | Health information | No | - |
 | Financial and payment information | No | - |
-| Authentication information | No | The user's AI API token and Telegram bot token are stored in `chrome.storage.local` and sent as credentials to the respective provider (`src/utils/ai-classifier.ts:75,131`; `src/utils/telegram-notifier.ts:172`). Settings password stored in plain text locally (`src/core/default-settings.ts:34`). |
-| Personal communications | No | The extension *receives* commands the user types to their own bot (`src/background/telegram-commands.ts:291-342`) and acts on them only if the chat id matches the configured one (`:340`); no command text is written to storage or the system log by this file (only API errors are logged, `:297,:456`). Borderline; check it if you prefer to over-disclose. |
+| Authentication information | No | The user's AI API token and Telegram bot token are stored in `chrome.storage.local` and sent as credentials to the respective provider (`src/utils/ai-classifier.ts:75,131`; `src/utils/telegram-notifier.ts:182`). Settings password stored in plain text locally (`src/core/default-settings.ts:33`). |
+| Personal communications | No | The extension *receives* commands the user types to their own bot (`src/background/telegram-commands.ts:291-342`) and acts on them only if the chat id matches the configured one (`:340`); no command text is written to storage or the system log by this file (only API errors are logged, `:297,:456`). Borderline; check it if you prefer to over-disclose. The messages the extension *sends* to the user's own chat (weekly summary, quiet-hours notice) are covered in the Web history row. |
 | Location | No | No geolocation or IP lookup in code. |
-| Web history | No | URL, title, visit time and transition type stored locally (`src/utils/history-sync.ts:39-72`, `src/background/navigation-handler.ts:287-296`); URL and title sent to the AI provider and to Telegram. |
-| User activity | No | No click/scroll/keystroke capture. Navigation events are covered by Web history. |
-| Website content | No | The only content script (`src/content/restriction-overlay.ts`) reads no page text or metadata; only URL + title (from `tab.title`: `src/background/navigation-handler.ts:198,229`) are sent to the AI. **Re-check if a content script is added to `src/manifest.json`.** |
+| Web history | No | URL, title, visit time and transition type stored locally (`src/utils/history-sync.ts:39-72`, `src/background/navigation-handler.ts:302-311`); URL and title sent to the AI provider and to Telegram. Two further Telegram messages go to the user's own chat when enabled: a weekly aggregate (visit / educational / blocked counts, up to three category names, date range; no URLs or titles: `src/utils/telegram-notifier.ts:523-551`) and a quiet-hours notice with the blocked site's **hostname only** (`src/utils/telegram-notifier.ts:557-582`). |
+| User activity | No | No click/scroll/keystroke capture and no usage or time-spent tracking: quiet hours only compares the local clock with the allowed hours (`src/core/quiet-hours.ts:28-69`). Navigation events are covered by Web history. |
+| Website content | No | The only content script (`src/content/restriction-overlay.ts`) reads no page text or metadata; only URL + title (from `tab.title`: `src/background/navigation-handler.ts:213,244`) are sent to the AI. **Re-check if a content script is added to `src/manifest.json`.** |
 
 ## 5. Limited Use certification
 

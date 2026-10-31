@@ -6,6 +6,30 @@
 import type { Settings } from '../types/index.ts';
 import { DEFAULT_SETTINGS } from './default-settings.ts';
 
+/** Integer local hour 0..23, else the default for that field. */
+function normalizeHour(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 23 ? value : fallback;
+}
+
+/**
+ * Quiet-hours config: only `{ enabled, allowedHours: { start, end } }` survives, so legacy keys
+ * (e.g. the removed `dailyLimitMinutes`) are dropped and invalid hours fall back per field.
+ */
+function normalizeTimeLimits(raw: unknown): Settings['timeLimits'] {
+  const defaults = DEFAULT_SETTINGS.timeLimits;
+  const tl = (typeof raw === 'object' && raw !== null ? raw : {}) as {
+    enabled?: unknown;
+    allowedHours?: { start?: unknown; end?: unknown } | null;
+  };
+  return {
+    enabled: typeof tl.enabled === 'boolean' ? tl.enabled : defaults.enabled,
+    allowedHours: {
+      start: normalizeHour(tl.allowedHours?.start, defaults.allowedHours.start),
+      end: normalizeHour(tl.allowedHours?.end, defaults.allowedHours.end),
+    },
+  };
+}
+
 /**
  * Shallow merge can leave null / wrong types from hand-edited or legacy storage.
  * Ensures list and timeLimits shapes match what the options UI expects.
@@ -35,16 +59,7 @@ export function normalizeSettingsShape(merged: Settings): Settings {
     out.pageNotificationTypes = [...DEFAULT_SETTINGS.pageNotificationTypes];
   }
 
-  const dtl = DEFAULT_SETTINGS.timeLimits;
-  const tl = out.timeLimits;
-  out.timeLimits = {
-    enabled: typeof tl?.enabled === 'boolean' ? tl.enabled : dtl.enabled,
-    dailyLimitMinutes: typeof tl?.dailyLimitMinutes === 'number' ? tl.dailyLimitMinutes : dtl.dailyLimitMinutes,
-    allowedHours: {
-      start: typeof tl?.allowedHours?.start === 'number' ? tl.allowedHours.start : dtl.allowedHours.start,
-      end: typeof tl?.allowedHours?.end === 'number' ? tl.allowedHours.end : dtl.allowedHours.end,
-    },
-  };
+  out.timeLimits = normalizeTimeLimits(out.timeLimits);
 
   return out;
 }

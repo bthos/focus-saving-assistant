@@ -20,11 +20,12 @@ Focus Saving Assistant ("the extension") is a Chrome extension that helps a pare
 |---|---|---|
 | Browsing log: page URL, page title, visit times, how the page was reached, whether it was blocked and why, the AI result for it, and whether it was visited in an incognito window | Locally, in `chrome.storage.local` | To show you a history of what was visited and what was blocked |
 | Imported Chrome history (URL, title, visit times) | Merged into the same local log, every 5 minutes | So the log is complete |
-| Your settings: allow / restrict / ignore URL patterns, restricted-page message, categories and safety levels you chose to restrict, display name, notification options, AI provider and model, AI prompt | Locally | To make the extension work the way you configured it |
+| Your settings: allow / restrict / ignore URL patterns, restricted-page message, categories and safety levels you chose to restrict, display name, notification options, quiet hours (on/off and allowed hours), AI provider and model, AI prompt | Locally | To make the extension work the way you configured it |
 | Your AI API token (GitHub Models or OpenRouter) and your Telegram bot token and chat id | Locally, in plain text inside your settings | To call the services you chose |
 | Optional settings password and its hint | Locally, in plain text inside your settings | To lock the settings, history, cache and log pages (see Security) |
 | AI classification cache (result per website, kept 24 hours) | Locally | To avoid asking the AI provider twice for the same site |
 | System log (up to 100 entries, can be switched off) | Locally | Troubleshooting; entries can include URLs and parts of AI responses |
+| Timestamps for the weekly report (when the last report was sent, when counting started, when it was last attempted) and the date of the last quiet-hours notification (no URLs) | Locally, in `chrome.storage.local` | To send the weekly report every 7 days and the quiet-hours notice once per quiet period |
 
 The extension also reads the title, description, keywords and Open Graph tags of each page you visit, and passes them to its own background process. That information is currently not stored and not sent anywhere.
 
@@ -38,6 +39,7 @@ Data leaves your device **only** to the services below, **only** when you have c
 
 2. **Telegram (`api.telegram.org`), through your own bot.**
    When Telegram notifications are on and you entered a bot token and chat id, the extension sends messages to your chat. Depending on your notification options these messages contain: the display name you set, the page **title and URL**, whether access was allowed or blocked and why (including the matching pattern), the AI classification details if available, and a timestamp. If you choose hourly or daily notification frequency, such notifications are queued locally (title, URL, classification) until sent. If you also enable Telegram commands, the extension periodically asks Telegram for new messages sent to your bot and acts only on commands from the chat id you configured (for example to add a site to the allow list).
+   Two more messages exist, both only if enabled in the notification options and both only to your own bot and chat: a **weekly report**, sent every 7 days (display name, the number of visits, educational visits and blocked attempts in the past 7 days, up to three category names, and the date range; no URLs or titles), and, if you turn on **quiet hours**, a **quiet-hours notice** once per quiet period on the first blocked attempt (display name, the **hostname** of the blocked site, the allowed hours and a timestamp; no full URL and no title).
    Telegram handles this data under **its own** terms and privacy policy.
 
 3. **Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`).**
@@ -58,6 +60,7 @@ The extension is configured to run separately in incognito windows (`"incognito"
 - Pages are still checked against your allow/restrict lists.
 - Pages are recorded in the browsing log with an **incognito** flag.
 - AI classification and Telegram notifications are **not** suppressed for incognito pages: if enabled, the URL and title are sent to your AI provider and/or Telegram bot exactly as for normal pages.
+- Quiet hours, if you enable it, also applies to incognito windows. If Telegram notifications are on, a blocked incognito attempt can be reported in the quiet-hours notice by **hostname** only.
 - Chrome's own history is not available in incognito, so the 5-minute history import returns nothing there.
 
 If you do not want incognito pages handled, do not allow the extension in incognito.
@@ -97,24 +100,27 @@ If the extension's data handling changes, this policy will be updated and the ef
 
 ---
 
-## Evidence (verified against code, v1.0.54)
+## Evidence (verified against code, v1.0.56)
 
 | Statement | Source |
 |---|---|
-| Local storage of log, settings, cache, logs | `src/utils/storage.ts:16-101,107-129`; `src/utils/system-logger.ts:31-48`; `src/background/navigation-handler.ts:131,363` |
-| Log fields incl. incognito flag | `src/background/navigation-handler.ts:197,265-296` |
-| History import every 5 min, empty in incognito | `src/background/service-worker.ts:53`; `src/utils/constants.ts:9`; `src/utils/history-sync.ts:16-18,38-47` |
+| Local storage of log, settings, cache, logs | `src/utils/storage.ts:16-101,107-129`; `src/utils/system-logger.ts:31-48`; `src/background/navigation-handler.ts:141,385` |
+| Log fields incl. incognito flag | `src/background/navigation-handler.ts:212,280-311` |
+| History import every 5 min, empty in incognito | `src/background/service-worker.ts:79`; `src/utils/constants.ts:9`; `src/utils/history-sync.ts:16-18,38-47` |
 | AI request contents (full URL, title, prompt, token, model) | `src/utils/ai-classifier.ts:43-64,72-91,128-147`; extra OpenRouter headers `:77-78` |
-| AI only when token + enabled; ignore list skipped | `src/utils/ai-classifier.ts:43-45`; `src/background/navigation-handler.ts:217-219,239` |
-| Cache reuse (24 h TTL) | `src/background/navigation-handler.ts:221-224`; `src/utils/constants.ts:8` |
-| Telegram message contents | `src/utils/telegram-notifier.ts:118-123,128-154,281-363,375-405,411-508`; local queue `:591-596`. (`sendWeeklyReport :513` and `notifyTimeLimitReached :554` exist but have no caller in `src/` per grep; so no such messages are sent today. [Re-check if a caller is added.]) |
-| Telegram only with token + chat id | `src/utils/telegram-notifier.ts:166-169,307-310` |
+| AI only when token + enabled; ignore list skipped | `src/utils/ai-classifier.ts:43-45`; `src/background/navigation-handler.ts:232-234,254` |
+| Cache reuse (24 h TTL) | `src/background/navigation-handler.ts:236-239`; `src/utils/constants.ts:8` |
+| Telegram message contents | `src/utils/telegram-notifier.ts:93-162,291-380,385-415,421-518`; local queue `:589-665` |
+| Weekly report: contents and trigger | message `src/utils/telegram-notifier.ts:523-551`; statistics are counts and category names only `src/core/weekly-report.ts:43-82`; sent from `src/background/weekly-report-handler.ts:42-43`; hourly alarm `src/background/weekly-report-handler.ts:87`; local timestamps `src/utils/constants.ts:24-27` |
+| Quiet-hours notice: hostname only, once per quiet period | message `src/utils/telegram-notifier.ts:557-582`; sent from `src/background/quiet-hours-handler.ts:80-104`; the check is a clock comparison with the allowed hours, no network request `src/core/quiet-hours.ts:28-69` |
+| Quiet hours also applies in incognito | no incognito condition in `src/background/quiet-hours-handler.ts:31-73`; the weekly check runs only in the normal (non-incognito) worker `src/background/weekly-report-handler.ts:21-22` |
+| Telegram only with token + chat id | `src/utils/telegram-notifier.ts:176-179,317-320,524-526,562-564` |
 | Telegram command polling restricted to configured chat | `src/background/telegram-commands.ts:280-284,330-342` |
 | Sole network targets | all `fetch(` calls: `src/utils/ai-classifier.ts`, `src/utils/telegram-notifier.ts`, `src/background/telegram-commands.ts`, `src/pages/utils/ai-models-handler.ts:31,45`, `src/pages/utils/telegram-handler.ts:34,126`. No other host. |
 | No page content read | single content script `src/content/restriction-overlay.ts`; `src/manifest.json:25-30` |
 | Google Fonts | `src/pages/options.html:7-9`, `history.html:7-9`, `cache.html:7-9`, `system-logs.html:7-9` |
 | Incognito split | `src/manifest.json:45` |
 | Limits: 10,000 history, 100 logs | `src/utils/constants.ts:6-7` |
-| Clear buttons | `src/pages/history.ts:342-344`; `src/pages/cache.ts:355-357`; `src/pages/system-logs.html:60`; Telegram `/clear_cache`: `src/pages/options.html:281`, `src/background/telegram-commands.ts:168` |
-| Password plain text | `src/core/default-settings.ts:34`; `src/pages/utils/password-gate.ts:14` |
+| Clear buttons | `src/pages/history.ts:342-344`; `src/pages/cache.ts:355-357`; `src/pages/system-logs.html:60`; Telegram `/clear_cache`: `src/pages/options.html:356`, `src/background/telegram-commands.ts:168` |
+| Password plain text | `src/core/default-settings.ts:33`; `src/pages/utils/password-gate.ts:14` |
 | No consent screen exists | `grep -rniE "consent|disclos|privacy" src/pages` -> no matches (gap, see privacy-practices.md section 7) |

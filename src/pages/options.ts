@@ -4,6 +4,8 @@
 
 import type { Settings } from '../types/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { formatHour } from '../core/quiet-hours.ts';
+import { normalizeSettingsShape } from '../core/settings-migration.ts';
 import { getSettings as getStoredSettings } from '../utils/storage.js';
 import { initPasswordGate } from './utils/password-gate.js';
 import { whenDocumentReady } from './utils/document-ready.js';
@@ -135,6 +137,15 @@ function populateForm(settings: Settings): void {
   }
   updateTelegramCommandsDependentFields();
   
+  // Quiet hours (settings are normalised: integer hours 0..23)
+  const quietEnabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement;
+  if (quietEnabledEl) quietEnabledEl.checked = settings.timeLimits.enabled;
+  const quietStartEl = document.getElementById('allowedHoursStart') as HTMLSelectElement;
+  if (quietStartEl) quietStartEl.value = String(settings.timeLimits.allowedHours.start);
+  const quietEndEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement;
+  if (quietEndEl) quietEndEl.value = String(settings.timeLimits.allowedHours.end);
+  updateQuietHoursDependentFields();
+
   // Notification types
   const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
   const restrictedTypeEl = document.getElementById('notificationTypeRestricted') as HTMLInputElement;
@@ -219,6 +230,45 @@ function updateTelegramCommandsDependentFields(): void {
     pollHelpEl.textContent =
       baseHelp + intervalHelp + ' Polling works only while Chrome is running.';
   }
+}
+
+/**
+ * Quiet hours: selects are disabled while the toggle is off; the summary states both the allowed and
+ * the blocked window so nobody has to invert it mentally.
+ */
+function updateQuietHoursDependentFields(): void {
+  const enabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement | null;
+  const startEl = document.getElementById('allowedHoursStart') as HTMLSelectElement | null;
+  const endEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement | null;
+  const summaryEl = document.getElementById('allowedHoursSummary');
+  if (!enabledEl || !startEl || !endEl) return;
+
+  startEl.disabled = !enabledEl.checked;
+  endEl.disabled = !enabledEl.checked;
+
+  if (summaryEl) {
+    const start = Number(startEl.value);
+    const end = Number(endEl.value);
+    if (start === end) {
+      summaryEl.textContent = 'No quiet hours: browsing is allowed all day.';
+    } else {
+      const overnight = start > end ? ' (overnight)' : '';
+      summaryEl.textContent =
+        `Browsing allowed ${formatHour(start)}–${formatHour(end)}${overnight}. ` +
+        `Quiet hours (blocked): ${formatHour(end)}–${formatHour(start)}.`;
+    }
+  }
+}
+
+function readQuietHoursFromForm(): Settings['timeLimits'] {
+  const enabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement | null;
+  const startEl = document.getElementById('allowedHoursStart') as HTMLSelectElement | null;
+  const endEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement | null;
+  if (!enabledEl || !startEl || !endEl) return currentSettings.timeLimits;
+  return {
+    enabled: enabledEl.checked,
+    allowedHours: { start: Number(startEl.value), end: Number(endEl.value) },
+  };
 }
 
 function setupEventListeners(): void {
@@ -358,6 +408,11 @@ function setupEventListeners(): void {
   const tgPollIntervalEl = document.getElementById('telegramPollInterval') as HTMLSelectElement;
   if (tgPollIntervalEl) {
     tgPollIntervalEl.addEventListener('change', updateTelegramCommandsDependentFields);
+  }
+
+  // Quiet hours toggle and hour selects - update dependent fields
+  for (const id of ['timeLimitsEnabled', 'allowedHoursStart', 'allowedHoursEnd']) {
+    document.getElementById(id)?.addEventListener('change', updateQuietHoursDependentFields);
   }
 
   // Provider change handler
@@ -729,7 +784,7 @@ async function saveSettings(): Promise<void> {
       parentPassword: newPassword,
       passwordHint: hintEl?.value || 'Enter word "friend"',
       enableSystemLogs: enableSystemLogsEl?.checked !== false, // Default to true
-      timeLimits: currentSettings.timeLimits || { enabled: false, dailyLimitMinutes: 120, allowedHours: { start: 8, end: 22 } }
+      timeLimits: readQuietHoursFromForm()
     };
     
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings });
@@ -796,7 +851,7 @@ function migrateImportedSettings(imported: Record<string, unknown>): Settings {
       }
     }
   }
-  return { ...getDefaultSettings(), ...s, categoryItems: categoryItems ?? getDefaultSettings().categoryItems, safetyLevelItems: safetyLevelItems ?? getDefaultSettings().safetyLevelItems } as Settings;
+  return normalizeSettingsShape({ ...getDefaultSettings(), ...s, categoryItems: categoryItems ?? getDefaultSettings().categoryItems, safetyLevelItems: safetyLevelItems ?? getDefaultSettings().safetyLevelItems } as Settings);
 }
 
 async function importSettings(e: Event): Promise<void> {

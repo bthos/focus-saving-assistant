@@ -9,6 +9,7 @@ import { loadRestrictionRules } from './rules-manager';
 import { syncHistoryFromBrowser } from './history-sync-handler';
 import { addSystemLog } from '../utils/system-logger';
 import { MESSAGE_TYPES } from '../utils/constants.js';
+import { QUIET_HOURS_REASON, isQuietHoursBlockable, isQuietNow } from '../core/quiet-hours.ts';
 
 /**
  * Handle messages from other parts of the extension
@@ -64,8 +65,21 @@ async function handleCheckRestricted(url: string): Promise<{
   try {
     // Check URL patterns only (blocking is based on URL patterns, not classification)
     const checkResult = await checkUrl(url, settings, null);
+    if (checkResult.restricted) {
+      return {
+        restricted: true,
+        reason: checkResult.reason,
+        matchedPattern: checkResult.matchedPattern
+      };
+    }
+
+    // Quiet hours: report only (the overlay agrees with the redirect); never redirects, notifies or stores.
+    if (isQuietNow(settings.timeLimits, Date.now()) && isQuietHoursBlockable(url)) {
+      return { restricted: true, reason: QUIET_HOURS_REASON, matchedPattern: null };
+    }
+
     return {
-      restricted: checkResult.restricted,
+      restricted: false,
       reason: checkResult.reason,
       matchedPattern: checkResult.matchedPattern
     };

@@ -53,13 +53,50 @@ describe('normalizeSettingsShape', () => {
 
   it('timeLimits: wrong or missing parts fall back to defaults, valid parts are kept', () => {
     const out = normalizeSettingsShape(stored({
-      timeLimits: { enabled: 'yes', dailyLimitMinutes: 45, allowedHours: { start: 6, end: '22' } },
+      timeLimits: { enabled: 'yes', allowedHours: { start: 6, end: '22' } },
     }));
     assert.deepEqual(out.timeLimits, {
       enabled: DEFAULT_SETTINGS.timeLimits.enabled,
-      dailyLimitMinutes: 45,
       allowedHours: { start: 6, end: DEFAULT_SETTINGS.timeLimits.allowedHours.end },
     });
+  });
+
+  it('timeLimits: a stored dailyLimitMinutes (dropped daily limit) is removed, valid quiet-hours fields are kept', () => {
+    const out = normalizeSettingsShape(stored({
+      timeLimits: { enabled: true, dailyLimitMinutes: 90, allowedHours: { start: 22, end: 7 } },
+    }));
+    assert.deepEqual(out.timeLimits, { enabled: true, allowedHours: { start: 22, end: 7 } });
+    assert.equal(Object.hasOwn(out.timeLimits, 'dailyLimitMinutes'), false);
+  });
+
+  it('timeLimits: allowedHours outside 0..23, fractional, non-numeric or null fall back per field to 8 / 22', () => {
+    for (const bad of [-1, 24, 7.5, Number.NaN, Number.POSITIVE_INFINITY, '8', null, undefined, {}]) {
+      const out = normalizeSettingsShape(stored({
+        timeLimits: { enabled: true, allowedHours: { start: bad, end: bad } },
+      }));
+      assert.deepEqual(out.timeLimits.allowedHours, { start: 8, end: 22 }, `value ${String(bad)}`);
+    }
+    // each field falls back on its own
+    const mixed = normalizeSettingsShape(stored({ timeLimits: { enabled: true, allowedHours: { start: 24, end: 5 } } }));
+    assert.deepEqual(mixed.timeLimits.allowedHours, { start: 8, end: 5 });
+  });
+
+  it('timeLimits: the boundary hours 0 and 23 are valid and kept', () => {
+    const out = normalizeSettingsShape(stored({ timeLimits: { enabled: false, allowedHours: { start: 0, end: 23 } } }));
+    assert.deepEqual(out.timeLimits, { enabled: false, allowedHours: { start: 0, end: 23 } });
+  });
+
+  it('timeLimits: a non-boolean enabled becomes false', () => {
+    for (const bad of [1, 0, 'true', null, undefined, {}]) {
+      const out = normalizeSettingsShape(stored({ timeLimits: { enabled: bad, allowedHours: { start: 9, end: 21 } } }));
+      assert.equal(out.timeLimits.enabled, false, `value ${String(bad)}`);
+      assert.deepEqual(out.timeLimits.allowedHours, { start: 9, end: 21 });
+    }
+  });
+
+  it('timeLimits: valid input comes back unchanged', () => {
+    const valid = { enabled: true, allowedHours: { start: 22, end: 8 } };
+    assert.deepEqual(normalizeSettingsShape(stored({ timeLimits: valid })).timeLimits, valid);
   });
 
   it('timeLimits: null or absent becomes the defaults', () => {
@@ -79,6 +116,26 @@ describe('normalizeSettingsShape', () => {
   it('is idempotent', () => {
     const once = normalizeSettingsShape(stored({ restrictedPatterns: null, timeLimits: { enabled: 1 } }));
     assert.deepEqual(normalizeSettingsShape(once), once);
+  });
+});
+
+describe('quiet hours settings cleanup', () => {
+  it('migrateStoredSettings drops dailyLimitMinutes from stored settings', () => {
+    const out = migrateStoredSettings(legacy({
+      timeLimits: { enabled: true, dailyLimitMinutes: 90, allowedHours: { start: 22, end: 7 } },
+    }));
+    assert.deepEqual(out.timeLimits, { enabled: true, allowedHours: { start: 22, end: 7 } });
+    assert.equal(Object.hasOwn(out.timeLimits, 'dailyLimitMinutes'), false);
+  });
+
+  it('migrateStoredSettings gives defaults when timeLimits is missing from storage', () => {
+    const out = migrateStoredSettings(legacy({}));
+    assert.deepEqual(out.timeLimits, { enabled: false, allowedHours: { start: 8, end: 22 } });
+  });
+
+  it('DEFAULT_SETTINGS.timeLimits has no dailyLimitMinutes and keeps the 8 -> 22 window, disabled', () => {
+    assert.equal('dailyLimitMinutes' in DEFAULT_SETTINGS.timeLimits, false);
+    assert.deepEqual(DEFAULT_SETTINGS.timeLimits, { enabled: false, allowedHours: { start: 8, end: 22 } });
   });
 });
 

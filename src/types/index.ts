@@ -37,7 +37,6 @@ export interface Settings {
   userProfileName: string;
   timeLimits: {
     enabled: boolean;
-    dailyLimitMinutes: number;
     allowedHours: {
       start: number;
       end: number;

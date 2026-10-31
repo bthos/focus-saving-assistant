@@ -9,6 +9,8 @@ import { classifyContent } from '../utils/ai-classifier';
 import { notifyRestrictedSite, notifyAllowedPathTelegram } from '../utils/telegram-notifier';
 import { RESTRICTED_PAGE_PATH, STORAGE_KEYS } from '../utils/constants.js';
 import { addSystemLog } from '../utils/system-logger';
+import { enforceQuietHours } from './quiet-hours-handler';
+import { QUIET_HOURS_REASON } from '../core/quiet-hours.ts';
 
 /**
  * Handle navigation before it completes
@@ -22,8 +24,9 @@ export async function handleBeforeNavigate(
     return;
   }
 
+  let settings: Settings | undefined;
   try {
-    const settings = await getSettings();
+    settings = await getSettings();
 
     // Check if site is ignored - if so, skip classification checks
     const isSiteIgnored = isIgnored(details.url, settings.ignoredPatterns || []);
@@ -49,6 +52,13 @@ export async function handleBeforeNavigate(
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Error checking restriction in onBeforeNavigate:', errorMessage);
     await addSystemLog('system', `Navigation check failed: ${errorMessage}`);
+  }
+
+  // Quiet hours run after the restricted-list / content check above (which returns early on a block)
+  // and never use its 'allowed' result as an exit: allow-listed and educational sites are blocked too.
+  // Kept outside the try so a throwing checkUrl / cache lookup does not skip the quiet-hours check.
+  if (settings) {
+    await enforceQuietHours(details, settings);
   }
 }
 
@@ -188,6 +198,11 @@ export async function handleCompletedNavigation(
       return;
     }
 
+    // Quiet hours safety net: blocked pages are not classified or recorded.
+    if (await enforceQuietHours(details, settings)) {
+      return;
+    }
+
     // Get tab info
     let isIncognito = false;
     let title = '';
@@ -309,10 +324,17 @@ async function handleRestrictedPageRedirect(
   details: chrome.webNavigation.WebNavigationFramedCallbackDetails,
   settings: Settings
 ): Promise<void> {
+  // Quiet-hours blocks are not history entries and must not be notified as restricted sites.
+  if (details.url.includes(`reason=${QUIET_HOURS_REASON}`)) {
+    return;
+  }
   console.log('Redirect to restricted page detected');
   // Get the original restricted URL from storage
   const stored = await chrome.storage.local.get([STORAGE_KEYS.LAST_RESTRICTED_URL]);
   let restrictedInfo = stored[STORAGE_KEYS.LAST_RESTRICTED_URL];
+  if (restrictedInfo?.reason === QUIET_HOURS_REASON) {
+    return;
+  }
   
   // If no stored URL found, try to get it from tab history (for declarativeNetRequest redirects)
   if (!restrictedInfo || restrictedInfo.tabId !== details.tabId) {

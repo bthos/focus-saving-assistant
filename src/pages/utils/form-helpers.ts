@@ -70,7 +70,6 @@ export function getDefaultSettings(): Settings {
     userProfileName: "",
     timeLimits: {
       enabled: false,
-      dailyLimitMinutes: 120,
       allowedHours: { start: 8, end: 22 }
     },
     parentPassword: "",

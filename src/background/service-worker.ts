@@ -10,6 +10,8 @@ import { initializeSettings, getSettings } from '../utils/storage';
 import { loadRestrictionRules } from './rules-manager';
 import { handleBeforeNavigate, handleCompletedNavigation } from './navigation-handler';
 import { setupMessageHandlers } from './message-handler';
+import { handleHistoryStateUpdated } from './quiet-hours-handler';
+import { runWeeklyReportCheck, ensureWeeklyReportAlarm } from './weekly-report-handler';
 import { syncHistoryFromBrowser } from './history-sync-handler';
 import { pollTelegramUpdates } from './telegram-commands';
 import { processNotificationQueue, discardNotificationQueue } from '../utils/telegram-notifier';
@@ -75,6 +77,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   // Set up periodic history sync
   chrome.alarms.create(ALARM_NAMES.SYNC_HISTORY, { periodInMinutes: HISTORY_SYNC_PERIOD_MINUTES });
+
+  // Weekly report: hourly alarm + first due-check
+  await ensureWeeklyReportAlarm();
+  await runWeeklyReportCheck();
 });
 
 /**
@@ -84,6 +90,9 @@ chrome.runtime.onStartup.addListener(async () => {
   console.log('Focus Saving Extension startup');
   await updateNotificationFlushAlarm();
   await syncHistoryFromBrowser();
+  // Alarms may not survive a browser restart
+  await ensureWeeklyReportAlarm();
+  await runWeeklyReportCheck();
 });
 
 /**
@@ -96,6 +105,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await pollTelegramUpdates();
   } else if (alarm.name === ALARM_NAMES.NOTIFICATION_FLUSH) {
     await processNotificationQueue(await getSettings());
+  } else if (alarm.name === ALARM_NAMES.WEEKLY_REPORT_CHECK) {
+    await runWeeklyReportCheck();
   }
 });
 
@@ -107,12 +118,22 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     await loadRestrictionRules();
     await updateTelegramPollAlarm();
     await updateNotificationFlushAlarm();
+    // Enabling/disabling Telegram or the weekly checkbox takes effect immediately
+    await runWeeklyReportCheck();
   }
 });
 
 // Set up navigation handlers
 chrome.webNavigation.onBeforeNavigate.addListener(handleBeforeNavigate);
 chrome.webNavigation.onCompleted.addListener(handleCompletedNavigation);
+// Single-page apps change the URL without a real navigation (quiet hours)
+chrome.webNavigation.onHistoryStateUpdated.addListener(handleHistoryStateUpdated);
 
 // Set up message handlers
 setupMessageHandlers();
+
+// Runs on every worker wake: recreate a lost weekly alarm and check once when it was missing,
+// so an ordinary wake costs one alarms.get.
+void ensureWeeklyReportAlarm()
+  .then((created) => (created ? runWeeklyReportCheck() : undefined))
+  .catch((error) => console.error('Weekly report alarm setup failed:', error));

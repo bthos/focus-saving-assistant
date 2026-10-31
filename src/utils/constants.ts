@@ -7,6 +7,7 @@ export const MAX_HISTORY_ENTRIES = 10000;
 export const MAX_LOG_ENTRIES = 100;
 export const CLASSIFICATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const HISTORY_SYNC_PERIOD_MINUTES = 5;
+export const WEEKLY_REPORT_CHECK_PERIOD_MINUTES = 60;
 export const HISTORY_SYNC_IGNORE_VISITS_SECONDS = 2;
 export const TELEGRAM_POLL_INTERVAL_MIN_MAX = 60;
 
@@ -20,6 +21,10 @@ export const STORAGE_KEYS = {
   LAST_HISTORY_SYNC_TIME: 'lastHistorySyncTime',
   LAST_AI_ERROR: 'lastAIError',
   LAST_TELEGRAM_UPDATE_ID: 'lastTelegramUpdateId',
+  LAST_QUIET_HOURS_NOTIFIED_WINDOW: 'lastQuietHoursNotifiedWindow',
+  LAST_WEEKLY_REPORT_AT: 'lastWeeklyReportAt',
+  WEEKLY_REPORT_ANCHOR_AT: 'weeklyReportAnchorAt',
+  WEEKLY_REPORT_LAST_ATTEMPT_AT: 'weeklyReportLastAttemptAt',
 } as const;
 
 export const MESSAGE_TYPES = {
@@ -32,4 +37,5 @@ export const ALARM_NAMES = {
   SYNC_HISTORY: 'syncHistory',
   TELEGRAM_POLL: 'telegramPoll',
   NOTIFICATION_FLUSH: 'notificationFlush',
+  WEEKLY_REPORT_CHECK: 'weeklyReportCheck',
 } as const;

@@ -149,6 +149,81 @@
             <div class="pattern-list" id="safetyLevelItemsList"></div>
           </div>
         </section>
+
+        <section class="section" id="quietHoursSection">
+          <h2>Quiet hours</h2>
+          <p class="section-description">Block all browsing outside the hours you allow, for example at night so the computer is not used when it is time to sleep.</p>
+
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="timeLimitsEnabled" class="toggle-input">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Enable quiet hours</span>
+            </label>
+            <p class="help-text">When on, every website is blocked outside the allowed hours below. When off, nothing below is applied.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="allowedHoursStart">Browsing allowed from</label>
+            <select id="allowedHoursStart" class="select" aria-describedby="allowedHoursSummary allowedHoursHelp">
+              <option value="0">00:00</option>
+              <option value="1">01:00</option>
+              <option value="2">02:00</option>
+              <option value="3">03:00</option>
+              <option value="4">04:00</option>
+              <option value="5">05:00</option>
+              <option value="6">06:00</option>
+              <option value="7">07:00</option>
+              <option value="8" selected>08:00</option>
+              <option value="9">09:00</option>
+              <option value="10">10:00</option>
+              <option value="11">11:00</option>
+              <option value="12">12:00</option>
+              <option value="13">13:00</option>
+              <option value="14">14:00</option>
+              <option value="15">15:00</option>
+              <option value="16">16:00</option>
+              <option value="17">17:00</option>
+              <option value="18">18:00</option>
+              <option value="19">19:00</option>
+              <option value="20">20:00</option>
+              <option value="21">21:00</option>
+              <option value="22">22:00</option>
+              <option value="23">23:00</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="allowedHoursEnd">Browsing allowed until</label>
+            <select id="allowedHoursEnd" class="select" aria-describedby="allowedHoursSummary allowedHoursHelp">
+              <option value="0">00:00</option>
+              <option value="1">01:00</option>
+              <option value="2">02:00</option>
+              <option value="3">03:00</option>
+              <option value="4">04:00</option>
+              <option value="5">05:00</option>
+              <option value="6">06:00</option>
+              <option value="7">07:00</option>
+              <option value="8">08:00</option>
+              <option value="9">09:00</option>
+              <option value="10">10:00</option>
+              <option value="11">11:00</option>
+              <option value="12">12:00</option>
+              <option value="13">13:00</option>
+              <option value="14">14:00</option>
+              <option value="15">15:00</option>
+              <option value="16">16:00</option>
+              <option value="17">17:00</option>
+              <option value="18">18:00</option>
+              <option value="19">19:00</option>
+              <option value="20">20:00</option>
+              <option value="21">21:00</option>
+              <option value="22" selected>22:00</option>
+              <option value="23">23:00</option>
+            </select>
+            <p class="help-text" id="allowedHoursSummary" aria-live="polite"></p>
+            <p class="help-text" id="allowedHoursHelp">Uses this computer's local time. All websites are blocked during quiet hours, <strong>including Allowed Sites and educational sites</strong>. "Until" is the first blocked minute (until 22:00 means 21:59 is still allowed). If "until" is earlier than "from", the allowed window runs overnight (22:00 → 08:00). If both are the same, there are no quiet hours. A page that is already open is blocked the next time it loads or changes address. Browser pages (chrome://) and these settings stay available. A Telegram message is sent once per quiet period when "Quiet hours attempts" is selected on the Notifications tab.</p>
+          </div>
+        </section>
       </div>
 
       <!-- AI Classification Tab -->
@@ -331,16 +406,16 @@
                   <span class="toggle-slider"></span>
                   <span class="toggle-label">Weekly Reports</span>
                 </label>
-                <p class="help-text">Send weekly summary reports</p>
+                <p class="help-text">Sent every 7 days; the first one 7 days after you enable it.</p>
               </div>
               
               <div class="toggle-item">
                 <label class="toggle-switch">
                   <input type="checkbox" id="notificationTypeTimeLimit" class="toggle-input" checked>
                   <span class="toggle-slider"></span>
-                  <span class="toggle-label">Time Limit Reached</span>
+                  <span class="toggle-label">Quiet hours attempts</span>
                 </label>
-                <p class="help-text">Notify when daily time limit is reached</p>
+                <p class="help-text">Sent once per quiet period, on the first blocked attempt. Needs "Enable quiet hours" on the Restrictions tab.</p>
               </div>
             </div>
           </div>
@@ -432,7 +507,7 @@
       </div>
     </form>
 
-    <div id="statusMessage" class="status-message"></div>
+    <div id="statusMessage" class="status-message" role="status" aria-live="polite"></div>
   </div>
   </div>
 

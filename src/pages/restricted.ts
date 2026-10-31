@@ -107,6 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (reasonInfo.matchedPattern) {
         reasonText += `\nMatches rule: ${reasonInfo.matchedPattern}`;
       }
+    } else if (reasonInfo.reason === 'outside-hours') {
+      reasonText = await outsideHoursReasonText();
     } else {
       reasonText = `Reason: ${reasonInfo.reason || 'Unknown'}`;
       if (reasonInfo.matchedPattern) {
@@ -120,8 +122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Get suggested educational resource URL
   // First try from query parameters, then from storage
-  let suggestedEducationalUrl: string | null = urlParams.get('suggestedUrl');
-  if (!suggestedEducationalUrl) {
+  // Quiet hours block everything: a suggested educational resource would be pointless.
+  const isOutsideHours = reasonInfo.reason === 'outside-hours';
+  let suggestedEducationalUrl: string | null = isOutsideHours ? null : urlParams.get('suggestedUrl');
+  if (!suggestedEducationalUrl && !isOutsideHours) {
     try {
       const storedResult = await chrome.storage.local.get(['lastRestrictedUrl']);
       if (storedResult.lastRestrictedUrl?.suggestedUrl) {
@@ -201,3 +205,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Request access button (if configured)
   // TODO: Implement access request functionality via Telegram
 });
+
+/**
+ * Copy for the quiet-hours block, built from the current settings (this classic script cannot import
+ * modules, so the hour formatting is inlined). Falls back to generic copy when the hours are unusable.
+ */
+async function outsideHoursReasonText(): Promise<string> {
+  const isHour = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 23;
+  const formatHour = (hour: number): string => String(hour).padStart(2, '0') + ':00';
+
+  try {
+    const result = await chrome.storage.local.get(['settings']);
+    const allowed = result.settings?.timeLimits?.allowedHours;
+    if (isHour(allowed?.start) && isHour(allowed?.end) && allowed.start !== allowed.end) {
+      return `Outside allowed browsing hours (${formatHour(allowed.start)}–${formatHour(allowed.end)}).\n` +
+        `Browsing is not available right now. It is available again from ${formatHour(allowed.start)}.`;
+    }
+  } catch (error) {
+    console.error('Error loading allowed hours:', error);
+  }
+  return 'Outside allowed browsing hours.\n' +
+    'Browsing is not available right now. Try again during your allowed hours.';
+}

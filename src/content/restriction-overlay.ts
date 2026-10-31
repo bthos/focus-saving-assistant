@@ -229,7 +229,9 @@ async function checkIfRestricted(): Promise<RestrictionInfo | null> {
 
       return {
         url: currentUrl || 'Unknown URL',
-        reason: response.reason || 'Restricted by focus saving',
+        reason: response.reason === 'outside-hours'
+          ? 'Outside allowed browsing hours'
+          : response.reason || 'Restricted by focus saving',
         message,
       };
     }
