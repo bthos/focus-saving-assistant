@@ -10,7 +10,7 @@ import { getSettings, saveSettings, getClassificationCache } from '../utils/stor
 import { sendTelegramMessage, editTelegramMessageText, escapeMarkdown } from '../utils/telegram-notifier';
 import { urlToPattern } from '../core/url-to-pattern.ts';
 import { parseTelegramInput } from '../core/telegram-input.ts';
-import type { PatternListKind, ParsedTelegramInput, TelegramCommandAction } from '../core/telegram-input.ts';
+import type { PatternListKind, ParsedTelegramInput } from '../core/telegram-input.ts';
 import { loadRestrictionRules } from './rules-manager';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { addSystemLog } from '../utils/system-logger';
@@ -23,11 +23,6 @@ const TELEGRAM_MESSAGE_SAFE = 3800;
 function truncateCallbackAnswer(text: string): string {
   if (text.length <= CALLBACK_ANSWER_MAX_LEN) return text;
   return text.slice(0, CALLBACK_ANSWER_MAX_LEN - 3) + '...';
-}
-
-export interface ParsedCommand {
-  action: TelegramCommandAction;
-  pattern: string;
 }
 
 function listKindToSettingsKey(list: PatternListKind): 'allowedPatterns' | 'restrictedPatterns' | 'ignoredPatterns' {
@@ -47,17 +42,6 @@ function clearListCommandName(list: PatternListKind): string {
   if (list === 'allowed') return 'clear_allow';
   if (list === 'restricted') return 'clear_restrict';
   return 'clear_ignore';
-}
-
-/**
- * @deprecated Use parseTelegramInput — only add + callback shape for legacy callers
- */
-export function parseCommand(text: string): ParsedCommand | null {
-  const p = parseTelegramInput(text);
-  if (!p || p.kind !== 'add') return null;
-  const action: TelegramCommandAction =
-    p.list === 'allowed' ? 'allow' : p.list === 'restricted' ? 'restrict' : 'ignore';
-  return { action, pattern: p.pattern };
 }
 
 export interface CommandOutcome {

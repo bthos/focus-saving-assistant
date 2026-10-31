@@ -15,7 +15,6 @@ export function matchesPattern(url: string, pattern: string): boolean {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
-    const pathname = urlObj.pathname;
 
     // Exact match
     if (pattern === hostname || pattern === url) {

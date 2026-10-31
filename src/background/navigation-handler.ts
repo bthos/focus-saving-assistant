@@ -112,7 +112,6 @@ async function blockNavigation(
   const suggestedUrl = classification?.suggestedUrl || classification?.suggestedEducationalResource || null;
   
   // Build detailed reason information
-  let detailedReason = checkResult.reason;
   const reasonDetails: string[] = [];
   
   if (checkResult.reason === 'content-restricted' && classification) {

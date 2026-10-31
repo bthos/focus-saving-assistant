@@ -97,24 +97,24 @@ If the extension's data handling changes, this policy will be updated and the ef
 
 ---
 
-## Evidence (verified against code, v1.0.53)
+## Evidence (verified against code, v1.0.54)
 
 | Statement | Source |
 |---|---|
-| Local storage of log, settings, cache, logs | `src/utils/storage.ts:16-101,107-129`; `src/utils/system-logger.ts:31-48`; `src/background/navigation-handler.ts:132,364` |
-| Log fields incl. incognito flag | `src/background/navigation-handler.ts:198,266-297` |
+| Local storage of log, settings, cache, logs | `src/utils/storage.ts:16-101,107-129`; `src/utils/system-logger.ts:31-48`; `src/background/navigation-handler.ts:131,363` |
+| Log fields incl. incognito flag | `src/background/navigation-handler.ts:197,265-296` |
 | History import every 5 min, empty in incognito | `src/background/service-worker.ts:53`; `src/utils/constants.ts:9`; `src/utils/history-sync.ts:16-18,38-47` |
-| AI request contents (full URL, title, prompt, token, model) | `src/utils/ai-classifier.ts:43-64,72-91,128-147`; extra OpenRouter headers `:77-78`; models list `:268,284` |
-| AI only when token + enabled; ignore list skipped | `src/utils/ai-classifier.ts:43-45`; `src/background/navigation-handler.ts:218-220,240` |
-| Cache reuse (24 h TTL) | `src/background/navigation-handler.ts:222-225`; `src/utils/constants.ts:8` |
-| Telegram message contents | `src/utils/telegram-notifier.ts:118-123,128-154,281-363,375-421,427-457,462-486,492-589`; local queue `:399-402,672-677`. (`sendWeeklyReport :594` and `notifyTimeLimitReached :635` exist but have no caller in `src/` per grep; so no such messages are sent today. [Re-check if a caller is added.]) |
+| AI request contents (full URL, title, prompt, token, model) | `src/utils/ai-classifier.ts:43-64,72-91,128-147`; extra OpenRouter headers `:77-78` |
+| AI only when token + enabled; ignore list skipped | `src/utils/ai-classifier.ts:43-45`; `src/background/navigation-handler.ts:217-219,239` |
+| Cache reuse (24 h TTL) | `src/background/navigation-handler.ts:221-224`; `src/utils/constants.ts:8` |
+| Telegram message contents | `src/utils/telegram-notifier.ts:118-123,128-154,281-363,375-405,411-508`; local queue `:591-596`. (`sendWeeklyReport :513` and `notifyTimeLimitReached :554` exist but have no caller in `src/` per grep; so no such messages are sent today. [Re-check if a caller is added.]) |
 | Telegram only with token + chat id | `src/utils/telegram-notifier.ts:166-169,307-310` |
-| Telegram command polling restricted to configured chat | `src/background/telegram-commands.ts:296-300,346-358` |
-| Sole network targets | all `fetch(` calls: `src/utils/ai-classifier.ts`, `src/utils/telegram-notifier.ts`, `src/background/telegram-commands.ts`, `src/pages/options.ts:29,45`, `src/pages/utils/ai-models-handler.ts:31,45`, `src/pages/utils/telegram-handler.ts:35,127`. No other host. |
+| Telegram command polling restricted to configured chat | `src/background/telegram-commands.ts:280-284,330-342` |
+| Sole network targets | all `fetch(` calls: `src/utils/ai-classifier.ts`, `src/utils/telegram-notifier.ts`, `src/background/telegram-commands.ts`, `src/pages/utils/ai-models-handler.ts:31,45`, `src/pages/utils/telegram-handler.ts:34,126`. No other host. |
 | No page content read | single content script `src/content/restriction-overlay.ts`; `src/manifest.json:25-30` |
 | Google Fonts | `src/pages/options.html:7-9`, `history.html:7-9`, `cache.html:7-9`, `system-logs.html:7-9` |
 | Incognito split | `src/manifest.json:45` |
 | Limits: 10,000 history, 100 logs | `src/utils/constants.ts:6-7` |
-| Clear buttons | `src/pages/history.ts:342-344`; `src/pages/cache.ts:355-357`; `src/pages/system-logs.html:60`; Telegram `/clear_cache`: `src/pages/options.html:281`, `src/background/telegram-commands.ts:184` |
+| Clear buttons | `src/pages/history.ts:342-344`; `src/pages/cache.ts:355-357`; `src/pages/system-logs.html:60`; Telegram `/clear_cache`: `src/pages/options.html:281`, `src/background/telegram-commands.ts:168` |
 | Password plain text | `src/core/default-settings.ts:34`; `src/pages/utils/password-gate.ts:14` |
 | No consent screen exists | `grep -rniE "consent|disclos|privacy" src/pages` -> no matches (gap, see privacy-practices.md section 7) |

@@ -97,9 +97,3 @@ export interface UrlCheckResult {
   reason: 'allowed' | 'restricted' | 'permitted' | string;
   matchedPattern: string | null;
 }
-
-export interface TelegramNotification {
-  type: 'restricted' | 'suspicious' | 'weekly' | 'timeLimit';
-  data: any;
-  timestamp: number;
-}

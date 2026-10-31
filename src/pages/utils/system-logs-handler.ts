@@ -2,7 +2,7 @@
  * System logs handler for displaying and managing logs
  */
 
-import { getSystemLogs, clearSystemLogs, clearErrorLogs, SystemLogEntry } from '../../utils/system-logger.js';
+import { getSystemLogs, clearSystemLogs, SystemLogEntry } from '../../utils/system-logger.js';
 import { escapeHtml } from './form-helpers.js';
 import { showStatus } from './form-helpers.js';
 
@@ -62,38 +62,6 @@ export async function loadSystemLogs(): Promise<void> {
   } catch (error) {
     container.innerHTML = '<div class="system-logs-placeholder">Error loading logs.</div>';
     console.error('Error loading system logs:', error);
-  }
-}
-
-/**
- * Clear error logs handler
- * Clears only AI, Telegram, and System logs (keeps 'other' category)
- */
-export async function clearErrorLogsHandler(): Promise<void> {
-  const logs = await getSystemLogs();
-  const errorLogs = logs.filter(log => ['ai', 'telegram', 'system'].includes(log.category));
-  const otherLogs = logs.filter(log => log.category === 'other');
-  
-  if (errorLogs.length === 0) {
-    showStatus('No error logs to clear', 'info');
-    return;
-  }
-  
-  const message = `Are you sure you want to clear ${errorLogs.length} error log(s)?\n` +
-    `This will remove AI, Telegram, and System logs.\n` +
-    (otherLogs.length > 0 ? `${otherLogs.length} log(s) in 'other' category will be kept.` : '');
-  
-  if (!confirm(message)) {
-    return;
-  }
-
-  try {
-    await clearErrorLogs();
-    await loadSystemLogs();
-    showStatus(`Cleared ${errorLogs.length} error log(s) successfully`, 'success');
-  } catch (error) {
-    showStatus('Error clearing error logs', 'error');
-    console.error('Error clearing error logs:', error);
   }
 }
 

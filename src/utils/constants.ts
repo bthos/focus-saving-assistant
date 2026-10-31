@@ -8,7 +8,6 @@ export const MAX_LOG_ENTRIES = 100;
 export const CLASSIFICATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const HISTORY_SYNC_PERIOD_MINUTES = 5;
 export const HISTORY_SYNC_IGNORE_VISITS_SECONDS = 2;
-export const TELEGRAM_POLL_INTERVAL_MIN_DEFAULT = 1;
 export const TELEGRAM_POLL_INTERVAL_MIN_MAX = 60;
 
 export const STORAGE_KEYS = {

@@ -370,58 +370,6 @@ export async function notifyRestrictedSite(
 }
 
 /**
- * Sends a notification about suspicious activity
- */
-export async function notifySuspiciousActivity(
-  settings: Settings, 
-  url: string, 
-  title: string, 
-  classification: ClassificationResult
-): Promise<void> {
-  if (!settings.enableTelegramNotifications || !settings.telegramBotToken || !settings.telegramChatId) {
-    return;
-  }
-  
-  // Check if suspicious notifications are enabled
-  const notificationTypes = settings.notificationTypes || ['restricted', 'suspicious', 'weekly', 'timeLimit'];
-  if (!notificationTypes.includes('suspicious')) {
-    console.log('Suspicious activity notifications disabled');
-    return;
-  }
-  
-  // Check if non-educational page notifications are enabled
-  const pageNotificationTypes = settings.pageNotificationTypes || ['restricted', 'nonEducational'];
-  if (!pageNotificationTypes.includes('nonEducational')) {
-    console.log('Non-educational page notifications disabled');
-    return;
-  }
-  
-  if (settings.notificationFrequency === 'daily' || settings.notificationFrequency === 'hourly') {
-    // For periodic notifications, save to queue
-    await queueNotification('suspicious', { url, title, classification });
-    return;
-  }
-  
-  const userProfile = escapeMarkdown(settings.userProfileName || 'Unknown User');
-
-  let message = `⚠️ *Non-educational content detected* — *${userProfile}*\n\n` +
-    formatTitleUrlLines(title, url) +
-    `\n${buildClassificationDetailsMarkdown(classification)}` +
-    `\n🕐 ${formatTimestamp()}`;
-  
-  const replyMarkup = settings.enableTelegramCommands
-    ? buildInlineKeyboardForUrl(url)
-    : undefined;
-  await sendTelegramMessage(
-    settings.telegramBotToken,
-    settings.telegramChatId,
-    message,
-    'Markdown',
-    replyMarkup
-  );
-}
-
-/**
  * Sends a notification about an allowed page being opened
  */
 export async function notifyAllowedPage(
@@ -452,35 +400,6 @@ export async function notifyAllowedPage(
     `📄 *Title:* ${displayTitle === 'Not specified' ? '_Not specified_' : displayTitle}\n` +
     `🔗 *URL:* ${displayUrl}\n\n` +
     `🕐 ${formatTimestamp()}`;
-  
-  await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
-}
-
-/**
- * Sends a notification about an educational page being opened
- */
-export async function notifyEducationalPage(
-  settings: Settings,
-  url: string,
-  title: string,
-  classification: ClassificationResult
-): Promise<void> {
-  if (!settings.enableTelegramNotifications || !settings.telegramBotToken || !settings.telegramChatId) {
-    return;
-  }
-  
-  // Check if educational page notifications are enabled
-  const pageNotificationTypes = settings.pageNotificationTypes || ['restricted', 'nonEducational'];
-  if (!pageNotificationTypes.includes('educational')) {
-    return;
-  }
-  
-  const userProfile = escapeMarkdown(settings.userProfileName || 'Unknown User');
-
-  const message = `📚 *Educational page opened* — *${userProfile}*\n\n` +
-    formatTitleUrlLines(title, url) +
-    `\n${buildClassificationDetailsMarkdown(classification)}` +
-    `\n🕐 ${formatTimestamp()}`;
   
   await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
 }

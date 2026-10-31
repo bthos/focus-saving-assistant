@@ -5,7 +5,7 @@
 import type { Settings } from '../types/index.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { getSettings as getStoredSettings } from '../utils/storage.js';
-import { initPasswordGate, setAuthenticated } from './utils/password-gate.js';
+import { initPasswordGate } from './utils/password-gate.js';
 import { whenDocumentReady } from './utils/document-ready.js';
 import { showPageLoadErrorInMain } from './utils/page-load-error.js';
 import { PROMPT_TEMPLATES, getDefaultSettings, renderPatternList, renderClassificationItemList, showStatus } from './utils/form-helpers.js';
@@ -13,58 +13,6 @@ import { loadAvailableModels } from './utils/ai-models-handler.js';
 import { loadTelegramGroups, testTelegram } from './utils/telegram-handler.js';
 
 let currentSettings: Settings;
-
-/**
- * Fetch available models from GitHub or OpenRouter API
- * This function is defined here to avoid import issues in Chrome extensions
- */
-async function fetchAvailableModels(provider: 'github' | 'openrouter', apiToken: string): Promise<any[]> {
-  if (!apiToken) {
-    return [];
-  }
-  
-  try {
-    if (provider === 'openrouter') {
-      // OpenRouter.ai API
-      const response = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        return [];
-      }
-      
-      const data = await response.json();
-      // OpenRouter returns { data: [...] } format
-      return data.data || [];
-    } else {
-      // GitHub AI Models API
-      const response = await fetch('https://models.github.ai/catalog/models', {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'X-GitHub-Api-Version': '2022-11-28'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('GitHub Models API error:', response.status, errorText);
-        throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      // GitHub Models API returns an array directly, not wrapped in {models: [...]}
-      return Array.isArray(data) ? data : (data.models || []);
-    }
-  } catch (error) {
-    console.error('Error fetching models:', error);
-    return [];
-  }
-}
 
 const initOptionsPage = async () => {
   try {

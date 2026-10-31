@@ -14,7 +14,7 @@ import { MESSAGE_TYPES } from '../utils/constants.js';
  * Handle messages from other parts of the extension
  */
 export function setupMessageHandlers(): void {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === MESSAGE_TYPES.RELOAD_RULES) {
       loadRestrictionRules().then(() => {
         sendResponse({ success: true });
