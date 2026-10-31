@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Saving Assistant",
+  "version": "1.0.52",
+  "description": "Focus saving extension: help you stay focused, organize your browsing, and discover educational content",
+  "permissions": [
+    "webNavigation",
+    "storage",
+    "tabs",
+    "history",
+    "alarms",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "identity"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://api.telegram.org/*",
+    "https://api.github.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content/content-script.js"],
+    "run_at": "document_idle"
+  }, {
+    "matches": ["<all_urls>"],
+    "js": ["content/restriction-overlay.js"],
+    "css": ["styles/restriction-overlay.css"],
+    "run_at": "document_start"
+  }],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "pages/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "pages/options.html",
+  "incognito": "split",
+  "declarative_net_request": {
+    "rule_resources": []
+  }
+}

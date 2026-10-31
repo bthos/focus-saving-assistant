@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Chrome Extension artifacts
+*.crx
+*.pem
+*.zip
+*.xpi
+
+# Icons (add your own icons)
+icons/*.png
+!icons/README.md
+src/icons/*.png
+!src/icons/README.md
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+*.code-workspace
+AGENTS.md
+CLAUDE.md
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+nul
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js.map
+
+# Source maps (if generated)
+*.map
+
+# Package files (keep package-lock.json - it should be committed)
+# package-lock.json is intentionally NOT ignored
+
+# Optional
+.specstory/
+plans/

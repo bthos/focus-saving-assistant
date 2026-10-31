@@ -1,0 +1,22 @@
+{
+  "name": "focus-saving-extension",
+  "version": "1.0.52",
+  "description": "Focus saving extension: help you stay focused, organize your browsing, and discover educational content",
+  "scripts": {
+    "build": "tsc && npm run bundle-sw && npm run copy-assets && npm run remove-sourcemaps",
+    "bundle-sw": "node scripts/bundle-service-worker.js",
+    "watch": "tsc --watch",
+    "copy-assets": "node scripts/copy-assets.js",
+    "remove-sourcemaps": "node scripts/remove-sourcemaps.js",
+    "clean": "rimraf dist",
+    "test": "tsc -p tests/tsconfig.json && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/node": "^20.10.0",
+    "esbuild": "^0.27.3",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.3"
+  },
+  "private": true
+}

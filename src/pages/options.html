@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Saving Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/options.css">
+</head>
+<body>
+  <!-- Password Gate Screen -->
+  <div id="passwordGate" class="password-gate">
+    <div class="gate-container">
+      <div class="gate-inscription">
+        <div class="english-text">The Doors of Durin, Lord of Moria</div>
+        <div class="english-text gate-riddle">Speak, friend, and enter</div>
+        <div class="gate-subtitle">I, Narvi, made them. Celebrimbor of Hollin drew these signs.</div>
+      </div>
+      
+      <form id="passwordGateForm" class="password-form" autocomplete="off" novalidate>
+        <input 
+          type="password" 
+          id="passwordInput" 
+          class="password-input" 
+          placeholder="Enter the word..."
+          autocomplete="new-password"
+          spellcheck="false"
+          autofocus
+        />
+        <div class="button-group-enter">
+          <button type="button" id="enterBtn" class="btn-enter">Enter</button>
+        </div>
+        <div id="passwordError" class="password-error"></div>
+        <div id="hintContainer" class="hint-container">
+          <button type="button" id="showHintBtn" class="btn-hint" title="Show hint">?</button>
+          <div id="gateHint" class="gate-hint">
+            <div class="hint-content">
+              <p id="hintText">Enter word "friend"</p>
+              <button type="button" id="closeHintBtn" class="btn-close-hint" title="Close hint">×</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Settings Content -->
+  <div id="mainContent" class="main-content visible">
+  <div class="container">
+    <header>
+      <div>
+        <h1>🔒 Focus Saving Settings</h1>
+        <p class="subtitle">Manage restriction rules and notifications</p>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="restriction">Restrictions</button>
+      <button class="tab-btn" data-tab="ai">AI Classification</button>
+      <button class="tab-btn" data-tab="notifications">Notifications</button>
+      <button class="tab-btn" data-tab="general">General</button>
+    </div>
+
+    <form id="settingsForm">
+      <!-- Restrictions Tab -->
+      <div class="tab-content active" id="tab-restriction">
+        <section class="section">
+          <h2>Restricted Page Message</h2>
+          <textarea id="restrictedPageMessage" rows="4" class="textarea" placeholder="Enter the message that will be displayed on the restricted page"></textarea>
+          <p class="help-text">If left empty, the default message will be displayed: "This site has been restricted to help you stay focused."</p>
+        </section>
+
+        <section class="section">
+          <h2>Restricted Sites</h2>
+          <p class="section-description">Add URLs or site patterns that should be restricted</p>
+          
+          <div class="pattern-input-group">
+            <div class="add-pattern">
+              <input type="text" id="newRestrictedPattern" placeholder="example.com, *.example.com, example.com/*" class="pattern-input">
+              <button type="button" id="addRestrictedBtn" class="btn btn-primary">Add</button>
+            </div>
+            <p class="help-text">Examples: example.com, *.example.com, example.com/path/*</p>
+          </div>
+          
+          <div class="pattern-list" id="restrictedPatternsList"></div>
+        </section>
+
+        <section class="section">
+          <h2>Allowed Sites</h2>
+          <p class="section-description">Sites in the allowed list are always permitted, even if they are in the restricted list</p>
+          
+          <div class="pattern-input-group">
+            <div class="add-pattern">
+              <input type="text" id="newAllowedPattern" placeholder="example.com" class="pattern-input">
+              <button type="button" id="addAllowedBtn" class="btn btn-primary">Add</button>
+            </div>
+          </div>
+          
+          <div class="pattern-list" id="allowedPatternsList"></div>
+        </section>
+
+        <section class="section">
+          <h2>Ignored Sites</h2>
+          <p class="section-description">Sites in the ignored list will skip AI classification. They will not be analyzed and will not be cached. Useful for sites that don't need classification.</p>
+          
+          <div class="pattern-input-group">
+            <div class="add-pattern">
+              <input type="text" id="newIgnoredPattern" placeholder="example.com, *.example.com" class="pattern-input">
+              <button type="button" id="addIgnoredBtn" class="btn btn-primary">Add</button>
+            </div>
+            <p class="help-text">Examples: example.com, *.example.com, example.com/path/*</p>
+          </div>
+          
+          <div class="pattern-list" id="ignoredPatternsList"></div>
+        </section>
+
+        <section class="section">
+          <h2>Content Restrictions</h2>
+          <p class="section-description">Configure which categories and safety levels should be blocked based on AI classification. The AI model must pick category and safety level ONLY from the lists below. Uses cached classifications for fast blocking. Requires AI Classification to be enabled.</p>
+          
+          <div id="aiClassificationWarning" class="help-text warning-message hidden">
+            ⚠️ AI Classification must be enabled in the "AI Classification" tab for these restrictions to work.
+          </div>
+          
+          <div class="form-group" id="contentRestrictionsGroup">
+            <label for="newCategoryInput">Categories</label>
+            <p class="help-text">Categories the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction.</p>
+            <div class="pattern-input-group">
+              <div class="add-pattern">
+                <input type="text" id="newCategoryInput" placeholder="Add category..." class="pattern-input" aria-label="New category name">
+                <button type="button" id="addCategoryBtn" class="btn btn-primary">Add</button>
+              </div>
+            </div>
+            <div class="pattern-list" id="categoryItemsList"></div>
+          </div>
+
+          <div class="form-group" id="safetyLevelsGroup">
+            <label for="newSafetyLevelInput">Safety Levels</label>
+            <p class="help-text">Safety levels the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction.</p>
+            <div class="pattern-input-group">
+              <div class="add-pattern">
+                <input type="text" id="newSafetyLevelInput" placeholder="Add level..." class="pattern-input" aria-label="New safety level">
+                <button type="button" id="addSafetyLevelBtn" class="btn btn-primary">Add</button>
+              </div>
+            </div>
+            <div class="pattern-list" id="safetyLevelItemsList"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- AI Classification Tab -->
+      <div class="tab-content" id="tab-ai">
+        <section class="section">
+          <h2>AI Models API</h2>
+          
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableAIClassification" class="toggle-input">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Enable automatic content classification</span>
+            </label>
+          </div>
+
+          <div id="aiErrorDisplay" class="help-text error-message hidden">
+            <div class="error-display-container">
+              <span id="aiErrorText"></span>
+              <button type="button" id="clearAIErrorBtn" class="btn btn-secondary btn-small">Clear</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="aiProvider">Provider</label>
+            <select id="aiProvider" class="select">
+              <option value="github">GitHub AI Models</option>
+              <option value="openrouter">OpenRouter.ai</option>
+            </select>
+            <p class="help-text" id="providerHelpText">Get token on GitHub: Settings → Developer settings → Personal access tokens → Tokens (classic)</p>
+          </div>
+
+          <div class="form-group">
+            <label for="aiApiToken">API Token</label>
+            <input type="password" id="aiApiToken" class="input" placeholder="Enter API token">
+            <p class="help-text" id="tokenHelpText">Get token on GitHub: Settings → Developer settings → Personal access tokens → Tokens (classic)</p>
+          </div>
+
+          <div class="form-group">
+            <label for="aiModel">Model</label>
+            <div class="field-with-action">
+              <select id="aiModel" class="select">
+                <option value="">Select a model...</option>
+              </select>
+              <button type="button" id="loadModelsBtn" class="btn btn-secondary">Load Available Models</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Classification Prompt</h2>
+          <p class="section-description">Configure the prompt for content classification. Use {url} and {title} variables</p>
+          
+          <div class="form-group">
+            <label for="promptTemplate">Prompt Templates</label>
+            <div class="field-with-action">
+              <select id="promptTemplate" class="select">
+                <option value="">Select a template...</option>
+                <option value="default">Default (Universal)</option>
+                <option value="young">For Elementary School (6-10 years)</option>
+                <option value="teen">For Teens (13-16 years)</option>
+                <option value="strict">Strict Mode</option>
+              </select>
+              <button type="button" id="applyTemplateBtn" class="btn btn-secondary">Apply</button>
+            </div>
+          </div>
+
+          <textarea id="aiClassificationPrompt" rows="8" class="textarea code-textarea" placeholder="Enter classification prompt..."></textarea>
+          
+          <div class="prompt-preview">
+            <label class="form-group-label">Prompt Preview:</label>
+            <div id="promptPreview" class="preview-box"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Notifications Tab -->
+      <div class="tab-content" id="tab-notifications">
+        <section class="section">
+          <h2>Telegram Notification Settings</h2>
+          <p class="section-description">Use <strong>one Telegram bot (one token) per Chrome user profile</strong>. Telegram delivers each update once per bot; using the same bot token in multiple profiles can drop or duplicate <code>/allow</code>, <code>/restrict</code>, and <code>/ignore</code> handling.</p>
+          
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableTelegramNotifications" class="toggle-input">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Enable Telegram notifications</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="userProfileName">User Profile</label>
+            <div class="field-with-action">
+              <input type="text" id="userProfileName" class="input" placeholder="User name">
+              <button type="button" id="detectUserNameBtn" class="btn btn-secondary">Detect Automatically</button>
+            </div>
+            <p class="help-text">Name of the user profile being monitored. This name will be included in notification messages.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="telegramBotToken">Bot Token</label>
+            <input type="password" id="telegramBotToken" class="input" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+            <p class="help-text">Create a bot via @BotFather in Telegram and get the token</p>
+          </div>
+
+          <div class="form-group">
+            <label for="telegramChatId">Chat/Group</label>
+            <div class="field-with-action">
+              <select id="telegramChatId" class="select">
+                <option value="">Select a group or enter Chat ID manually</option>
+              </select>
+              <button type="button" id="loadGroupsBtn" class="btn btn-secondary">Load Groups</button>
+            </div>
+            <input type="text" id="telegramChatIdManual" class="input margin-top-sm" placeholder="Or enter Chat ID manually (e.g., 123456789 or @username)">
+            <p class="help-text">Click "Load Groups" after entering the bot token to see available groups. Or enter Chat ID manually.</p>
+            <button type="button" id="testTelegramBtn" class="btn btn-secondary margin-top-sm">Test Notification</button>
+          </div>
+
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableTelegramCommands" class="toggle-input">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Enable Telegram commands</span>
+            </label>
+            <p class="help-text">Manage lists and the classification cache from Telegram. Commands apply only to <strong>this</strong> Chrome profile. In groups, mention the bot (e.g. <code>/allow@YourBotName</code>).</p>
+            <ul class="help-text telegram-commands-list">
+              <li><strong>Lists:</strong> <code>/list_allow</code>, <code>/list_restrict</code>, <code>/list_ignore</code></li>
+              <li><strong>Add:</strong> <code>/allow</code>, <code>/restrict</code>, <code>/ignore</code> plus URL or pattern</li>
+              <li><strong>Remove:</strong> <code>/remove_allow</code>, <code>/remove_restrict</code>, <code>/remove_ignore</code> plus pattern</li>
+              <li><strong>Clear list:</strong> <code>/clear_allow confirm</code> (same for <code>restrict</code> / <code>ignore</code>)</li>
+              <li><strong>Cache:</strong> <code>/cache_info</code>, <code>/clear_cache confirm</code></li>
+              <li><strong>Help:</strong> <code>/help</code></li>
+            </ul>
+          </div>
+
+          <div class="form-group" id="telegramPollIntervalGroup">
+            <label for="telegramPollInterval">Polling interval</label>
+            <select id="telegramPollInterval" class="select">
+              <option value="0.5">30 seconds</option>
+              <option value="1" selected>1 minute</option>
+              <option value="2">2 minutes</option>
+              <option value="5">5 minutes</option>
+            </select>
+            <p class="help-text" id="telegramPollIntervalHelp">How often the extension checks for new commands. Too long — browser may close before the command is received; too short — excessive API requests. Polling works only while Chrome is running.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="notificationFrequency">Notification Frequency</label>
+            <select id="notificationFrequency" class="select">
+              <option value="instant">Instant</option>
+              <option value="hourly">Hourly</option>
+              <option value="daily">Daily</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Notification Types</label>
+            <p class="section-description">Select which types of visits should trigger notifications</p>
+            <div class="toggle-group">
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notificationTypeRestricted" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Restricted Sites</span>
+                </label>
+                <p class="help-text">Notify when user attempts to access restricted sites</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notificationTypeSuspicious" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Non-Educational Content</span>
+                </label>
+                <p class="help-text">Notify when non-educational content is detected</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notificationTypeWeekly" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Weekly Reports</span>
+                </label>
+                <p class="help-text">Send weekly summary reports</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="notificationTypeTimeLimit" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Time Limit Reached</span>
+                </label>
+                <p class="help-text">Notify when daily time limit is reached</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Page Opening Types</label>
+            <p class="section-description">Select which types of page openings should trigger notifications</p>
+            <div class="toggle-group">
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="pageNotificationTypeRestricted" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Restricted</span>
+                </label>
+                <p class="help-text">Notify when restricted pages are opened</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="pageNotificationTypeAllowed" class="toggle-input">
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Allowed</span>
+                </label>
+                <p class="help-text">Notify when allowed pages are opened</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="pageNotificationTypeEducational" class="toggle-input">
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Educational</span>
+                </label>
+                <p class="help-text">Notify when educational pages are opened</p>
+              </div>
+              
+              <div class="toggle-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="pageNotificationTypeNonEducational" class="toggle-input" checked>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">Non-Educational</span>
+                </label>
+                <p class="help-text">Notify when non-educational pages are opened</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- General Tab -->
+      <div class="tab-content" id="tab-general">
+        <section class="section">
+          <h2>General Settings</h2>
+          
+          <div class="form-group">
+            <label for="parentPassword">Access Password</label>
+            <input type="password" id="parentPassword" class="input" placeholder="Leave empty to not require a password">
+            <p class="help-text">Password to protect settings and history pages</p>
+          </div>
+
+          <div class="form-group">
+            <label for="passwordHint">Password Hint</label>
+            <input type="text" id="passwordHint" class="input" placeholder="Enter word &quot;friend&quot;">
+            <p class="help-text">Hint text shown when user clicks the ? button on password screen</p>
+          </div>
+
+          <div class="form-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableSystemLogs" class="toggle-input" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Enable System Logs</span>
+            </label>
+            <p class="help-text">When enabled, system events, errors, and AI classification activities are logged. You can view logs on the System Logs page.</p>
+          </div>
+
+          <div class="form-group">
+            <h3>Export/Import Settings</h3>
+            <div class="button-group">
+              <button type="button" id="exportSettingsBtn" class="btn btn-primary">Export Settings</button>
+              <button type="button" id="importSettingsBtn" class="btn btn-secondary">Import Settings</button>
+              <input type="file" id="importFileInput" accept=".json" class="hidden-input" aria-label="Import settings file">
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-large">Save Settings</button>
+        <button type="button" id="resetBtn" class="btn btn-secondary">Reset to Defaults</button>
+      </div>
+    </form>
+
+    <div id="statusMessage" class="status-message"></div>
+  </div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

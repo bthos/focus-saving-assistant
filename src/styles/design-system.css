@@ -1,0 +1,447 @@
+/**
+ * Design System - Centralized design tokens for the Focus Saving Extension
+ * 
+ * This file contains all design tokens including:
+ * - Colors (primary, secondary, semantic, backgrounds)
+ * - Typography (font families, sizes, weights, line heights)
+ * - Spacing (margins, paddings, gaps)
+ * - Shadows and elevations
+ * - Border radius
+ * - Transitions and animations
+ * - Breakpoints
+ */
+
+/* ============================================
+   COLOR SYSTEM
+   ============================================ */
+
+:root {
+  /* Primary Colors */
+  --color-primary: #667eea;
+  --color-primary-hover: #5568d3;
+  --color-primary-light: #e8ebff;
+  --color-primary-dark: #4c5fd8;
+
+  /* Secondary Colors */
+  --color-secondary: #6c757d;
+  --color-secondary-hover: #5a6268;
+  --color-secondary-light: #e9ecef;
+  --color-secondary-dark: #545b62;
+
+  /* Semantic Colors */
+  --color-success: #27ae60;
+  --color-success-hover: #229954;
+  --color-success-light: #d4edda;
+  --color-success-dark: #155724;
+  
+  --color-danger: #e74c3c;
+  --color-danger-hover: #c0392b;
+  --color-danger-light: #f8d7da;
+  --color-danger-dark: #721c24;
+  
+  --color-warning: #ffc107;
+  --color-warning-light: #fff3cd;
+  --color-warning-dark: #856404;
+  
+  --color-info: #17a2b8;
+  --color-info-light: #d1ecf1;
+  --color-info-dark: #0c5460;
+
+  /* Background Colors - Light Mode */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #fafafa;
+  --bg-overlay: rgba(0, 0, 0, 0.85);
+  --bg-input: #ffffff;
+  --bg-pattern: #fafafa;
+  --bg-pattern-item: #ffffff;
+  --bg-preview: #f8f9fa;
+  --bg-hover: #f8f9fa;
+
+  /* Text Colors - Light Mode */
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --text-tertiary: #b0b0b0;
+  --text-heading: #2c3e50;
+  --text-muted: #6c757d;
+  --text-link: #667eea;
+  --text-link-hover: #5568d3;
+  --text-link-visited: #9b59b6;
+
+  /* Border Colors - Light Mode */
+  --border-color: #e0e0e0;
+  --border-light: #e9ecef;
+  --border-medium: #ddd;
+  --border-dark: #adb5bd;
+
+  /* Shadow Colors */
+  --shadow-sm: rgba(0, 0, 0, 0.05);
+  --shadow-md: rgba(0, 0, 0, 0.1);
+  --shadow-lg: rgba(0, 0, 0, 0.15);
+  --shadow-xl: rgba(0, 0, 0, 0.2);
+  --shadow-2xl: rgba(0, 0, 0, 0.3);
+
+  /* Password Gate Theme Colors - Light Mode */
+  --gate-bg-start: #f5f5f5;
+  --gate-bg-middle: #ffffff;
+  --gate-bg-end: #f5f5f5;
+  --gate-overlay-start: rgba(139, 69, 19, 0.05);
+  --gate-overlay-end: rgba(139, 69, 19, 0.05);
+  --gate-text-primary: #8b6f47;
+  --gate-text-secondary: #a0845c;
+  --gate-text-riddle: #b8860b;
+  --gate-text-subtitle: #8b7355;
+  --gate-input-bg: rgba(255, 255, 255, 0.9);
+  --gate-input-border: #8b7355;
+  --gate-input-text: #5d4e37;
+  --gate-input-placeholder: #a0845c;
+  --gate-input-shadow: rgba(139, 115, 85, 0.2);
+  --gate-input-focus-border: #b8860b;
+  --gate-input-focus-shadow: rgba(184, 134, 11, 0.3);
+  --gate-btn-bg-start: #d4af37;
+  --gate-btn-bg-end: #b8860b;
+  --gate-btn-text: #ffffff;
+  --gate-btn-border: #b8860b;
+  --gate-btn-shadow: rgba(184, 134, 11, 0.3);
+  --gate-hint-bg: rgba(139, 115, 85, 0.1);
+  --gate-hint-border: rgba(212, 175, 55, 0.3);
+  --gate-hint-text: #8b6f47;
+}
+
+/* Dark Mode Color Overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Background Colors - Dark Mode */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #121212;
+    --bg-tertiary: #252525;
+    --bg-overlay: rgba(0, 0, 0, 0.9);
+    --bg-input: #2a2a2a;
+    --bg-pattern: #252525;
+    --bg-pattern-item: #2a2a2a;
+    --bg-preview: #252525;
+    --bg-hover: #252525;
+
+    /* Text Colors - Dark Mode */
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-tertiary: #888888;
+    --text-heading: #ffffff;
+    --text-muted: #888888;
+    --text-link: #7c8fff;
+    --text-link-hover: #9ba8ff;
+    --text-link-visited: #b794d4;
+
+    /* Border Colors - Dark Mode */
+    --border-color: #404040;
+    --border-light: #333333;
+    --border-medium: #404040;
+    --border-dark: #555555;
+
+    /* Shadow Colors - Dark Mode */
+    --shadow-sm: rgba(0, 0, 0, 0.2);
+    --shadow-md: rgba(0, 0, 0, 0.3);
+    --shadow-lg: rgba(0, 0, 0, 0.4);
+    --shadow-xl: rgba(0, 0, 0, 0.5);
+    --shadow-2xl: rgba(0, 0, 0, 0.6);
+
+    /* Password Gate Theme Colors - Dark Mode */
+    --gate-bg-start: #1a1a1a;
+    --gate-bg-middle: #0d0d0d;
+    --gate-bg-end: #1a1a1a;
+    --gate-overlay-start: rgba(139, 69, 19, 0.1);
+    --gate-overlay-end: rgba(139, 69, 19, 0.1);
+    --gate-text-primary: #d4af37;
+    --gate-text-secondary: #c9a961;
+    --gate-text-riddle: #f4d03f;
+    --gate-text-subtitle: #8b7355;
+    --gate-input-bg: rgba(26, 26, 26, 0.8);
+    --gate-input-border: #8b7355;
+    --gate-input-text: #f4d03f;
+    --gate-input-placeholder: #8b7355;
+    --gate-input-shadow: rgba(139, 115, 85, 0.3);
+    --gate-input-focus-border: #d4af37;
+    --gate-input-focus-shadow: rgba(212, 175, 55, 0.6);
+    --gate-btn-bg-start: #8b7355;
+    --gate-btn-bg-end: #6b5b3d;
+    --gate-btn-text: #f4d03f;
+    --gate-btn-border: #d4af37;
+    --gate-btn-shadow: rgba(212, 175, 55, 0.4);
+    --gate-hint-bg: rgba(139, 115, 85, 0.1);
+    --gate-hint-border: rgba(212, 175, 55, 0.3);
+    --gate-hint-text: #c9a961;
+  }
+}
+
+/* ============================================
+   TYPOGRAPHY SYSTEM
+   ============================================ */
+
+:root {
+  /* Font Families */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-heading: 'Cinzel', 'Times New Roman', serif;
+  --font-family-mono: 'Courier New', monospace;
+
+  /* Font Sizes */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  --font-size-4xl: 32px;
+  --font-size-5xl: 48px;
+  --font-size-6xl: 64px;
+  --font-size-7xl: 80px;
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+  --line-height-loose: 1.8;
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.5px;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 1px;
+  --letter-spacing-wider: 2px;
+  --letter-spacing-widest: 4px;
+}
+
+/* ============================================
+   SPACING SYSTEM
+   ============================================ */
+
+:root {
+  /* Base spacing unit: 4px */
+  --spacing-0: 0;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-20: 80px;
+}
+
+/* ============================================
+   BORDER RADIUS
+   ============================================ */
+
+:root {
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+}
+
+/* ============================================
+   SHADOWS & ELEVATIONS
+   ============================================ */
+
+:root {
+  --shadow-xs: 0 1px 2px var(--shadow-sm);
+  --shadow-sm: 0 2px 4px var(--shadow-sm);
+  --shadow-md: 0 2px 4px var(--shadow-md);
+  --shadow-lg: 0 4px 8px var(--shadow-md);
+  --shadow-xl: 0 4px 12px var(--shadow-lg);
+  --shadow-2xl: 0 20px 60px var(--shadow-2xl);
+  --shadow-inner: inset 0 2px 4px var(--shadow-sm);
+}
+
+/* ============================================
+   TRANSITIONS & ANIMATIONS
+   ============================================ */
+
+:root {
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+  --transition-slower: 0.5s ease;
+  --transition-slowest: 1s ease;
+  
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ============================================
+   BREAKPOINTS
+   ============================================ */
+
+:root {
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ============================================
+   Z-INDEX SCALE
+   ============================================ */
+
+:root {
+  --z-index-base: 1;
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-maximum: 2147483647;
+}
+
+/* ============================================
+   COMPONENT-SPECIFIC TOKENS
+   ============================================ */
+
+:root {
+  /* Container */
+  --container-max-width-sm: 640px;
+  --container-max-width-md: 768px;
+  --container-max-width-lg: 1024px;
+  --container-max-width-xl: 1200px;
+  --container-max-width-2xl: 1400px;
+  --container-padding: var(--spacing-5);
+
+  /* Button */
+  --button-padding-sm: var(--spacing-2) var(--spacing-4);
+  --button-padding-md: var(--spacing-3) var(--spacing-5);
+  --button-padding-lg: var(--spacing-4) var(--spacing-7);
+  --button-font-size-sm: var(--font-size-sm);
+  --button-font-size-md: var(--font-size-base);
+  --button-font-size-lg: var(--font-size-lg);
+  --button-border-radius: var(--radius-md);
+  --button-transition: var(--transition-base);
+
+  /* Input */
+  --input-padding: var(--spacing-3);
+  --input-border-width: 1px;
+  --input-border-radius: var(--radius-md);
+  --input-font-size: var(--font-size-sm);
+  --input-focus-ring-width: 3px;
+  --input-focus-ring-color: rgba(102, 126, 234, 0.1);
+
+  /* Card */
+  --card-padding: var(--spacing-6);
+  --card-border-radius: var(--radius-lg);
+  --card-shadow: var(--shadow-md);
+
+  /* Badge */
+  --badge-padding: var(--spacing-1) var(--spacing-3);
+  --badge-border-radius: var(--radius-full);
+  --badge-font-size: var(--font-size-xs);
+  --badge-font-weight: var(--font-weight-medium);
+
+  /* Form Field with Action Button */
+  --field-action-gap: var(--spacing-2);
+  --field-action-align: flex-start;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(212, 175, 55, 0.5),
+      0 0 20px rgba(212, 175, 55, 0.3),
+      0 0 30px rgba(212, 175, 55, 0.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 15px rgba(212, 175, 55, 0.7),
+      0 0 30px rgba(212, 175, 55, 0.5),
+      0 0 45px rgba(212, 175, 55, 0.3);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  @keyframes glow {
+    0%, 100% {
+      text-shadow: 
+        0 0 8px rgba(139, 111, 71, 0.4),
+        0 0 15px rgba(139, 111, 71, 0.2),
+        0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    50% {
+      text-shadow: 
+        0 0 12px rgba(139, 111, 71, 0.6),
+        0 0 20px rgba(139, 111, 71, 0.3),
+        0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+  }
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Restricted</title>
+  <link rel="stylesheet" href="../styles/design-system.css">
+  <link rel="stylesheet" href="../styles/restricted.css">
+</head>
+<body>
+  <div class="container">
+    <div class="restricted-icon">🚫</div>
+    <h1>Access Restricted</h1>
+    <div class="message" id="restrictedMessage">
+      This site has been restricted to help you stay focused.
+    </div>
+    <div class="url-info">
+      <strong>Restricted URL:</strong>
+      <div class="url" id="restrictedUrl"></div>
+    </div>
+    <div class="reason-info hidden" id="reasonInfo">
+      <strong>Blocking Reason:</strong>
+      <div class="reason-details" id="reasonDetails"></div>
+    </div>
+    <div class="educational-suggestion hidden" id="educationalSuggestion">
+      <div class="suggestion-icon">📚</div>
+      <div class="suggestion-content">
+        <h3>Suggested Educational Resource:</h3>
+        <div class="suggested-url" id="suggestedUrl"></div>
+        <button id="goToEducationalBtn" class="btn btn-success">Go to Educational Resource</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="goBackBtn" class="btn btn-primary">Go Back</button>
+      <button id="requestAccessBtn" class="btn btn-secondary hidden">Request Access</button>
+    </div>
+    <div class="footer">
+      <p>If you believe this is an error, please check your settings.</p>
+    </div>
+  </div>
+  <script src="restricted.js"></script>
+</body>
+</html>
