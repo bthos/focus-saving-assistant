@@ -1,6 +1,6 @@
 {
   "name": "focus-saving-extension",
-  "version": "1.0.54",
+  "version": "1.0.55",
   "description": "Focus saving extension: help you stay focused, organize your browsing, and discover educational content",
   "scripts": {
     "build": "tsc && npm run bundle-sw && npm run copy-assets && npm run remove-sourcemaps",

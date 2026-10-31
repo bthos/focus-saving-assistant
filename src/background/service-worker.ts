@@ -12,6 +12,8 @@ import { handleBeforeNavigate, handleCompletedNavigation } from './navigation-ha
 import { setupMessageHandlers } from './message-handler';
 import { syncHistoryFromBrowser } from './history-sync-handler';
 import { pollTelegramUpdates } from './telegram-commands';
+import { processNotificationQueue, discardNotificationQueue } from '../utils/telegram-notifier';
+import { planNotificationFlush, isFlushAlarmCurrent } from '../core/notification-queue.ts';
 import {
   ALARM_NAMES,
   HISTORY_SYNC_PERIOD_MINUTES,
@@ -40,6 +42,27 @@ async function updateTelegramPollAlarm(): Promise<void> {
 }
 
 /**
+ * Schedule or clear the hourly/daily notification flush alarm based on settings.
+ * When periodic sending is off, the stored queue is discarded so it cannot go stale or send later.
+ */
+async function updateNotificationFlushAlarm(): Promise<void> {
+  const settings = await getSettings();
+  const plan = planNotificationFlush(settings);
+
+  if (plan.mode === 'periodic') {
+    // chrome.alarms.get resolves undefined when the alarm does not exist (typings say Alarm).
+    const existing: chrome.alarms.Alarm | undefined = await chrome.alarms.get(ALARM_NAMES.NOTIFICATION_FLUSH);
+    // Creating restarts the countdown; keep it running unless the period changed or it is gone.
+    if (!isFlushAlarmCurrent(existing, plan.periodInMinutes)) {
+      await chrome.alarms.create(ALARM_NAMES.NOTIFICATION_FLUSH, { periodInMinutes: plan.periodInMinutes });
+    }
+  } else {
+    await chrome.alarms.clear(ALARM_NAMES.NOTIFICATION_FLUSH);
+    await discardNotificationQueue();
+  }
+}
+
+/**
  * Extension initialization
  */
 chrome.runtime.onInstalled.addListener(async () => {
@@ -48,6 +71,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await loadRestrictionRules();
   await syncHistoryFromBrowser();
   await updateTelegramPollAlarm();
+  await updateNotificationFlushAlarm();
 
   // Set up periodic history sync
   chrome.alarms.create(ALARM_NAMES.SYNC_HISTORY, { periodInMinutes: HISTORY_SYNC_PERIOD_MINUTES });
@@ -58,6 +82,7 @@ chrome.runtime.onInstalled.addListener(async () => {
  */
 chrome.runtime.onStartup.addListener(async () => {
   console.log('Focus Saving Extension startup');
+  await updateNotificationFlushAlarm();
   await syncHistoryFromBrowser();
 });
 
@@ -69,6 +94,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await syncHistoryFromBrowser();
   } else if (alarm.name === ALARM_NAMES.TELEGRAM_POLL) {
     await pollTelegramUpdates();
+  } else if (alarm.name === ALARM_NAMES.NOTIFICATION_FLUSH) {
+    await processNotificationQueue(await getSettings());
   }
 });
 
@@ -79,6 +106,7 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
   if (areaName === 'local' && changes.settings) {
     await loadRestrictionRules();
     await updateTelegramPollAlarm();
+    await updateNotificationFlushAlarm();
   }
 });
 

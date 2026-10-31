@@ -5,6 +5,14 @@
 import { Settings, ClassificationResult } from '../types';
 import { addSystemLog } from './system-logger';
 import { STORAGE_KEYS } from './constants.js';
+import {
+  enqueueNotification,
+  normalizeQueue,
+  planNotificationFlush,
+  removeDelivered,
+  type QueuedNotification,
+  type SuspiciousNotificationData,
+} from '../core/notification-queue.ts';
 
 const TELEGRAM_API_BASE = 'https://api.telegram.org/bot';
 
@@ -580,62 +588,84 @@ export async function notifyTimeLimitReached(
 }
 
 /**
- * Notification queue for periodic sending
+ * Notification queue for periodic (hourly/daily) sending
  */
-interface QueuedNotification {
-  type: string;
-  data: any;
-  timestamp: number;
+
+// Queue read-modify-write steps run one at a time so concurrent calls cannot overwrite each other.
+let queueMutation: Promise<unknown> = Promise.resolve();
+
+function withQueueLock<T>(task: () => Promise<T>): Promise<T> {
+  const run = queueMutation.then(task);
+  queueMutation = run.catch(() => undefined);
+  return run;
 }
 
-export async function queueNotification(type: string, data: any): Promise<void> {
+async function readNotificationQueue(): Promise<QueuedNotification[]> {
   const stored = await chrome.storage.local.get([STORAGE_KEYS.NOTIFICATION_QUEUE]);
-  const queue: QueuedNotification[] = stored[STORAGE_KEYS.NOTIFICATION_QUEUE] || [];
-  queue.push({ type, data, timestamp: Date.now() });
-  await chrome.storage.local.set({ [STORAGE_KEYS.NOTIFICATION_QUEUE]: queue });
+  return normalizeQueue(stored[STORAGE_KEYS.NOTIFICATION_QUEUE]);
 }
 
+export async function queueNotification(
+  type: QueuedNotification['type'],
+  data: SuspiciousNotificationData
+): Promise<void> {
+  await withQueueLock(async () => {
+    const queue = await readNotificationQueue();
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.NOTIFICATION_QUEUE]: enqueueNotification(queue, type, data, Date.now()),
+    });
+  });
+}
+
+/**
+ * Drops every stored queued notification (periodic sending is off, so they would only go stale).
+ */
+export async function discardNotificationQueue(): Promise<void> {
+  await withQueueLock(() => chrome.storage.local.remove(STORAGE_KEYS.NOTIFICATION_QUEUE));
+}
+
+/**
+ * Sends the queued notifications as one grouped message. The queue is cleared only after Telegram
+ * accepted the message; on failure it is kept and the next flush retries.
+ */
 export async function processNotificationQueue(settings: Settings): Promise<void> {
-  const stored = await chrome.storage.local.get([STORAGE_KEYS.NOTIFICATION_QUEUE]);
-  const queue: QueuedNotification[] = stored[STORAGE_KEYS.NOTIFICATION_QUEUE] || [];
-  
-  if (queue.length === 0) {
+  // Periodic sending not allowed under the current settings (instant, Telegram off, token/chat
+  // missing, 'suspicious' off): stored items are stale, so drop them instead of sending.
+  if (planNotificationFlush(settings).mode === 'off') {
+    await discardNotificationQueue();
     return;
   }
-  
-  // Group notifications by type
-  const grouped: { [key: string]: QueuedNotification[] } = {};
-  queue.forEach(item => {
-    if (!grouped[item.type]) {
-      grouped[item.type] = [];
-    }
-    grouped[item.type].push(item);
-  });
-  
-  // Send grouped notifications
-  const userProfile = settings.userProfileName || 'Unknown User';
-  for (const [type, items] of Object.entries(grouped)) {
-    if (type === 'suspicious' && items.length > 0) {
-      const userProfileEscaped = escapeMarkdown(userProfile);
-      
-      const message = `⚠️ *${items.length} non-educational sites detected* — *${userProfileEscaped}*\n\n` +
-        `📋 *Sites:*\n` +
-        items.slice(0, 10).map((item, index) => {
-          const displayUrl = truncateUrl(item.data.url, 50);
-          const displayTitle = item.data.title ? escapeMarkdown(item.data.title) : '_No title_';
-          const accessNote =
-            item.data.accessAllowed === true
-              ? `\n   ${formatAccessOutcomeMarkdown('allowed', item.data.accessReason || 'allowed')}`
-              : '';
-          return `${index + 1}. ${displayTitle}\n   \`${displayUrl}\`${accessNote}`;
-        }).join('\n\n') +
-        (items.length > 10 ? `\n\n... and *${items.length - 10}* more sites` : '') +
-        `\n\n🕐 ${formatTimestamp()}`;
-      
-      await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
-    }
+
+  const items = await withQueueLock(readNotificationQueue);
+  if (items.length === 0) {
+    return;
   }
-  
-  // Clear queue
-  await chrome.storage.local.set({ [STORAGE_KEYS.NOTIFICATION_QUEUE]: [] });
+
+  const userProfileEscaped = escapeMarkdown(settings.userProfileName || 'Unknown User');
+  const message = `⚠️ *${items.length} non-educational sites detected* — *${userProfileEscaped}*\n\n` +
+    `📋 *Sites:*\n` +
+    items.slice(0, 10).map((item, index) => {
+      const displayUrl = truncateUrl(item.data.url, 50);
+      const displayTitle = item.data.title ? escapeMarkdown(item.data.title) : '_No title_';
+      const accessNote =
+        item.data.accessAllowed === true
+          ? `\n   ${formatAccessOutcomeMarkdown('allowed', item.data.accessReason || 'allowed')}`
+          : '';
+      return `${index + 1}. ${displayTitle}\n   \`${displayUrl}\`${accessNote}`;
+    }).join('\n\n') +
+    (items.length > 10 ? `\n\n... and *${items.length - 10}* more sites` : '') +
+    `\n\n🕐 ${formatTimestamp()}`;
+
+  const sent = await sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, message);
+  if (!sent) {
+    return;
+  }
+
+  // Remove only what was sent: items queued while the message was in flight stay for the next flush.
+  await withQueueLock(async () => {
+    const current = await readNotificationQueue();
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.NOTIFICATION_QUEUE]: removeDelivered(current, items),
+    });
+  });
 }

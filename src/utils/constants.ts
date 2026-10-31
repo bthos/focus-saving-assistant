@@ -31,4 +31,5 @@ export const MESSAGE_TYPES = {
 export const ALARM_NAMES = {
   SYNC_HISTORY: 'syncHistory',
   TELEGRAM_POLL: 'telegramPoll',
+  NOTIFICATION_FLUSH: 'notificationFlush',
 } as const;
