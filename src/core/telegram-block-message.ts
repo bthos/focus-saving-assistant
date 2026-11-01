@@ -37,7 +37,7 @@ export function formatAccessOutcomeMarkdown(outcome: 'allowed' | 'blocked', reas
     const detail = p ? `URL matches restricted list (pattern: ${p})` : 'URL matches restricted list';
     return `*Access:* 🚫 Blocked — ${esc(detail)}`;
   }
-  if (reasonCode === 'content-restricted') return `*Access:* 🚫 Blocked — ${esc('Content restriction (category or safety level)')}`;
+  if (reasonCode === 'content-restricted') return `*Access:* 🚫 Blocked — ${esc('Content restriction (category or risk level)')}`;
   return `*Access:* 🚫 Blocked — ${esc(reasonCode)}`;
 }
 
@@ -97,7 +97,7 @@ function render(input: BlockedSiteMessageInput, o: Opts): string {
     block =
       `📊 *Classification Details:*\n` +
       `   • Category: ${field(cls.category || 'Unknown', CAPS.category)}\n` +
-      `   • Safety Level: ${field(cls.safetyLevel || 'Not specified', CAPS.safety)}\n` +
+      `   • Risk Level: ${field(cls.safetyLevel || 'Not specified', CAPS.safety)}\n` +
       `   • Age Appropriate: ${ageStatus}\n\n` +
       `   • Educational: ${edu}\n`;
     if (!input.pending) {

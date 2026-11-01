@@ -161,7 +161,7 @@ function pendingBlock(url: string): RestrictedInfo {
     category: 'Shopping',
     safetyLevel: 'Medium',
     classificationReason: SYNTHESIZED,
-    reasonDetails: ['Category: Shopping', 'Safety Level: Medium', `Reason: ${SYNTHESIZED}`],
+    reasonDetails: ['Category: Shopping', 'Risk Level: Medium', `Reason: ${SYNTHESIZED}`],
     noUrlReason: null,
     reasonPending: true,
     explanationStatus: 'pending',

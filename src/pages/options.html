@@ -119,7 +119,7 @@
 
         <section class="section">
           <h2>Content Restrictions</h2>
-          <p class="section-description">Configure which categories and safety levels should be blocked based on AI classification. The AI model must pick category and safety level ONLY from the lists below. Uses cached classifications for fast blocking. Requires AI Classification to be enabled.</p>
+          <p class="section-description">Configure which categories and risk levels should be blocked based on AI classification. The AI model must pick category and risk level ONLY from the lists below. Uses cached classifications for fast blocking. Requires AI Classification to be enabled.</p>
           
           <div id="aiClassificationWarning" class="help-text warning-message hidden">
             ⚠️ AI Classification must be enabled in the "AI Classification" tab for these restrictions to work.
@@ -141,11 +141,11 @@
           </div>
 
           <div class="form-group" id="safetyLevelsGroup">
-            <label for="newSafetyLevelInput">Safety Levels</label>
-            <p class="help-text">Safety levels the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction. The optional description helps the decision model choose the item; built-in items already have one.</p>
+            <label for="newSafetyLevelInput">Risk Levels</label>
+            <p class="help-text">Risk levels the AI model can assign. Toggle Allow/Block per item. Blocked items trigger restriction. The optional description helps the decision model choose the item; built-in items already have one.</p>
             <div class="pattern-input-group">
               <div class="add-pattern">
-                <input type="text" id="newSafetyLevelInput" placeholder="Add level..." class="pattern-input" aria-label="New safety level">
+                <input type="text" id="newSafetyLevelInput" placeholder="Add level..." class="pattern-input" aria-label="New risk level">
                 <button type="button" id="addSafetyLevelBtn" class="btn btn-primary">Add</button>
               </div>
             </div>
@@ -158,7 +158,7 @@
 
         <section class="section" id="quietHoursSection">
           <h2>Quiet hours</h2>
-          <p class="section-description">Block all browsing outside the hours you allow, for example at night so the computer is not used when it is time to sleep.</p>
+          <p class="section-description">Block all browsing during the hours you set, for example at night so the computer is not used when it is time to sleep.</p>
 
           <div class="form-group">
             <label class="toggle-switch">
@@ -166,12 +166,12 @@
               <span class="toggle-slider"></span>
               <span class="toggle-label">Enable quiet hours</span>
             </label>
-            <p class="help-text">When on, every website is blocked outside the allowed hours below. When off, nothing below is applied.</p>
+            <p class="help-text">When on, every website is blocked during the quiet hours below. When off, nothing below is applied.</p>
           </div>
 
           <div class="form-group">
-            <label for="allowedHoursStart">Browsing allowed from</label>
-            <select id="allowedHoursStart" class="select" aria-describedby="allowedHoursSummary allowedHoursHelp">
+            <label for="quietHoursFrom">Quiet hours from</label>
+            <select id="quietHoursFrom" class="select" aria-describedby="quietHoursSummary quietHoursHelp">
               <option value="0">00:00</option>
               <option value="1">01:00</option>
               <option value="2">02:00</option>
@@ -199,8 +199,8 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="allowedHoursEnd">Browsing allowed until</label>
-            <select id="allowedHoursEnd" class="select" aria-describedby="allowedHoursSummary allowedHoursHelp">
+            <label for="quietHoursUntil">Quiet hours until</label>
+            <select id="quietHoursUntil" class="select" aria-describedby="quietHoursSummary quietHoursHelp">
               <option value="0">00:00</option>
               <option value="1">01:00</option>
               <option value="2">02:00</option>
@@ -226,8 +226,8 @@
               <option value="22" selected>22:00</option>
               <option value="23">23:00</option>
             </select>
-            <p class="help-text" id="allowedHoursSummary" aria-live="polite"></p>
-            <p class="help-text" id="allowedHoursHelp">Uses this computer's local time. All websites are blocked during quiet hours, <strong>including Allowed Sites and educational sites</strong>. "Until" is the first blocked minute (until 22:00 means 21:59 is still allowed). If "until" is earlier than "from", the allowed window runs overnight (22:00 → 08:00). If both are the same, there are no quiet hours. A page that is already open is blocked the next time it loads or changes address. Browser pages (chrome://) and these settings stay available. A Telegram message is sent once per quiet period when "Quiet hours attempts" is selected on the Notifications tab.</p>
+            <p class="help-text" id="quietHoursSummary" aria-live="polite"></p>
+            <p class="help-text" id="quietHoursHelp">Uses this computer's local time. All websites are blocked during quiet hours, <strong>including Allowed Sites and educational sites</strong>. "From" is the first blocked minute and "until" is the first minute browsing is available again (until 08:00 means 07:59 is still blocked). If "until" is earlier than "from", quiet hours run overnight (22:00 → 08:00). If both are the same, there are no quiet hours. A page that is already open is blocked the next time it loads or changes address. Browser pages (chrome://) and these settings stay available. A Telegram message is sent once per quiet period when "Quiet hours attempts" is selected on the Notifications tab.</p>
           </div>
         </section>
       </div>
@@ -258,7 +258,7 @@
 
         <section class="section" id="decisionModelSection">
           <h2>Decision model (fast verdict)</h2>
-          <p class="section-description">Gives a fast verdict (educational? age-appropriate? which category and safety level?) so a page can be blocked quickly. The extension then decides block or allow from your Content Restrictions lists. Uses OpenRouter Decisions models and an OpenRouter key.</p>
+          <p class="section-description">Gives a fast verdict (educational? age-appropriate? which category and risk level?) so a page can be blocked quickly. The extension then decides block or allow from your Content Restrictions lists. Uses OpenRouter Decisions models and an OpenRouter key.</p>
 
           <div class="form-group">
             <label class="toggle-switch">
@@ -340,7 +340,7 @@
           <div class="form-group">
             <label for="aiExplanationPrompt">Explanation prompt</label>
             <textarea id="aiExplanationPrompt" rows="6" class="textarea code-textarea" aria-describedby="aiExplanationPromptHelp"></textarea>
-            <p class="help-text" id="aiExplanationPromptHelp">Placeholders: {url} {title} {audience} {category} {safetyLevel}. Describe what you want explained; the extension adds the reply format itself, so do not write JSON instructions here. Used only in two-stage mode while explanations are on.</p>
+            <p class="help-text" id="aiExplanationPromptHelp">Placeholders: {url} {title} {audience} {category} {riskLevel}. Describe what you want explained; the extension adds the reply format itself, so do not write JSON instructions here. Used only in two-stage mode while explanations are on.</p>
             <button type="button" id="resetExplanationPromptBtn" class="btn btn-secondary btn-small">Restore default prompt</button>
           </div>
 

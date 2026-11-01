@@ -63,8 +63,8 @@ export function selectItemsForModel(items: readonly ClassificationItem[], kind: 
 
 export function getClassificationLimitWarnings(items: readonly ClassificationItem[], kind: ItemKind): string[] {
   const warnings: string[] = [];
-  const noun = kind === 'category' ? 'categories' : 'safety levels';
-  const singular = kind === 'category' ? 'category' : 'safety level';
+  const noun = kind === 'category' ? 'categories' : 'risk levels';
+  const singular = kind === 'category' ? 'category' : 'risk level';
   const max = maxFor(kind);
   if (items.length > max) {
     warnings.push(`You have ${items.length} ${noun}. Only the first ${max} are sent to the decision model; the rest are ignored and will not block anything. Remove some or move them up.`);

@@ -249,7 +249,7 @@ function renderHistory(): void {
                 </span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">Safety Level:</span>
+                <span class="detail-label">Risk Level:</span>
                 <span class="detail-value">${escapeHtml(classification.safetyLevel || 'Not specified')}</span>
               </div>
               <div class="detail-item">

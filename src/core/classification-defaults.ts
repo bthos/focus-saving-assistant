@@ -34,7 +34,6 @@ export const DEFAULT_AVAILABLE_SAFETY_LEVELS: string[] = [
   'Low',
   'Medium',
   'High',
-  'Unknown',
 ];
 
 export interface ClassificationItem {

@@ -101,7 +101,7 @@ function populateForm(settings: Settings): void {
   populateAiTab(settings, { initial: !aiTabPopulated });
   aiTabPopulated = true;
   
-  // Content restrictions: categories and safety levels (list + Allow/Block toggle)
+  // Content restrictions: categories and risk levels (list + Allow/Block toggle)
   const categoryItems = settings.categoryItems ?? [];
   const safetyLevelItems = settings.safetyLevelItems ?? [];
   renderClassificationItemList('categoryItemsList', categoryItems, 'category');
@@ -140,13 +140,14 @@ function populateForm(settings: Settings): void {
   }
   updateTelegramCommandsDependentFields();
   
-  // Quiet hours (settings are normalised: integer hours 0..23)
+  // Quiet hours (settings are normalised: integer hours 0..23). The form shows the quiet window;
+  // storage keeps the complementary allowed window: quiet from = allowedHours.end, until = allowedHours.start.
   const quietEnabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement;
   if (quietEnabledEl) quietEnabledEl.checked = settings.timeLimits.enabled;
-  const quietStartEl = document.getElementById('allowedHoursStart') as HTMLSelectElement;
-  if (quietStartEl) quietStartEl.value = String(settings.timeLimits.allowedHours.start);
-  const quietEndEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement;
-  if (quietEndEl) quietEndEl.value = String(settings.timeLimits.allowedHours.end);
+  const quietFromEl = document.getElementById('quietHoursFrom') as HTMLSelectElement;
+  if (quietFromEl) quietFromEl.value = String(settings.timeLimits.allowedHours.end);
+  const quietUntilEl = document.getElementById('quietHoursUntil') as HTMLSelectElement;
+  if (quietUntilEl) quietUntilEl.value = String(settings.timeLimits.allowedHours.start);
   updateQuietHoursDependentFields();
 
   // Notification types
@@ -236,41 +237,40 @@ function updateTelegramCommandsDependentFields(): void {
 }
 
 /**
- * Quiet hours: selects are disabled while the toggle is off; the summary states both the allowed and
- * the blocked window so nobody has to invert it mentally.
+ * Quiet hours: selects are disabled while the toggle is off; the summary states the quiet window
+ * (the first select is where it starts, the second where it ends).
  */
 function updateQuietHoursDependentFields(): void {
   const enabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement | null;
-  const startEl = document.getElementById('allowedHoursStart') as HTMLSelectElement | null;
-  const endEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement | null;
-  const summaryEl = document.getElementById('allowedHoursSummary');
-  if (!enabledEl || !startEl || !endEl) return;
+  const fromEl = document.getElementById('quietHoursFrom') as HTMLSelectElement | null;
+  const untilEl = document.getElementById('quietHoursUntil') as HTMLSelectElement | null;
+  const summaryEl = document.getElementById('quietHoursSummary');
+  if (!enabledEl || !fromEl || !untilEl) return;
 
-  startEl.disabled = !enabledEl.checked;
-  endEl.disabled = !enabledEl.checked;
+  fromEl.disabled = !enabledEl.checked;
+  untilEl.disabled = !enabledEl.checked;
 
   if (summaryEl) {
-    const start = Number(startEl.value);
-    const end = Number(endEl.value);
-    if (start === end) {
-      summaryEl.textContent = 'No quiet hours: browsing is allowed all day.';
+    const from = Number(fromEl.value);
+    const until = Number(untilEl.value);
+    if (from === until) {
+      summaryEl.textContent = 'No quiet hours: browsing is available all day.';
     } else {
-      const overnight = start > end ? ' (overnight)' : '';
-      summaryEl.textContent =
-        `Browsing allowed ${formatHour(start)}–${formatHour(end)}${overnight}. ` +
-        `Quiet hours (blocked): ${formatHour(end)}–${formatHour(start)}.`;
+      const overnight = from > until ? ' (overnight)' : '';
+      summaryEl.textContent = `Quiet hours (browsing blocked): ${formatHour(from)}–${formatHour(until)}${overnight}.`;
     }
   }
 }
 
 function readQuietHoursFromForm(): Settings['timeLimits'] {
   const enabledEl = document.getElementById('timeLimitsEnabled') as HTMLInputElement | null;
-  const startEl = document.getElementById('allowedHoursStart') as HTMLSelectElement | null;
-  const endEl = document.getElementById('allowedHoursEnd') as HTMLSelectElement | null;
-  if (!enabledEl || !startEl || !endEl) return currentSettings.timeLimits;
+  const fromEl = document.getElementById('quietHoursFrom') as HTMLSelectElement | null;
+  const untilEl = document.getElementById('quietHoursUntil') as HTMLSelectElement | null;
+  if (!enabledEl || !fromEl || !untilEl) return currentSettings.timeLimits;
   return {
     enabled: enabledEl.checked,
-    allowedHours: { start: Number(startEl.value), end: Number(endEl.value) },
+    // Quiet [from, until) is the complement of the stored allowed window [start, end).
+    allowedHours: { start: Number(untilEl.value), end: Number(fromEl.value) },
   };
 }
 
@@ -332,7 +332,7 @@ function setupEventListeners(): void {
     }
   });
 
-  // Add category / safety level: core/classification-limits decides (empty, too long, duplicate, limit)
+  // Add category / risk level: core/classification-limits decides (empty, too long, duplicate, limit)
   const addCategoryBtn = document.getElementById('addCategoryBtn');
   if (addCategoryBtn) {
     addCategoryBtn.addEventListener('click', () => {
@@ -349,7 +349,7 @@ function setupEventListeners(): void {
     });
   }
 
-  // Optional description of a category / safety level (delegated; no re-render, so typing keeps the focus)
+  // Optional description of a category / risk level (delegated; no re-render, so typing keeps the focus)
   document.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     if (!target.classList.contains('classification-description')) return;
@@ -393,7 +393,7 @@ function setupEventListeners(): void {
   }
 
   // Quiet hours toggle and hour selects - update dependent fields
-  for (const id of ['timeLimitsEnabled', 'allowedHoursStart', 'allowedHoursEnd']) {
+  for (const id of ['timeLimitsEnabled', 'quietHoursFrom', 'quietHoursUntil']) {
     document.getElementById(id)?.addEventListener('change', updateQuietHoursDependentFields);
   }
 
@@ -600,7 +600,7 @@ function describeItemError(code: 'empty' | 'too-long' | 'duplicate' | 'limit', k
     default:
       return kind === 'category'
         ? `Category limit reached (${MAX_CATEGORY_ITEMS}). Remove one before adding another.`
-        : `Safety level limit reached (${MAX_SAFETY_LEVEL_ITEMS}). Remove one before adding another.`;
+        : `Risk level limit reached (${MAX_SAFETY_LEVEL_ITEMS}). Remove one before adding another.`;
   }
 }
 

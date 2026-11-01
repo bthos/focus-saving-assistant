@@ -25,10 +25,10 @@ export function synthesizeReason(
   const level = c.safetyLevel || 'Unknown';
   const catBlocked = matchesContentRestrictions({ category, reason: '' } as ClassificationResult, lists.restrictedCategories, []);
   const levelBlocked = matchesContentRestrictions({ category: '', safetyLevel: level, reason: '' } as ClassificationResult, [], lists.restrictedSafetyLevels);
-  if (!catBlocked && !levelBlocked) return `Classified as ${category} (safety level: ${level}).`;
+  if (!catBlocked && !levelBlocked) return `Classified as ${category} (risk level: ${level}).`;
   const parts: string[] = [];
   if (catBlocked) parts.push(`Category "${category}" is blocked in the settings.`);
-  if (levelBlocked) parts.push(`Safety level "${level}" is blocked in the settings.`);
+  if (levelBlocked) parts.push(`Risk level "${level}" is blocked in the settings.`);
   let text = parts.join(' ');
   if ((c.isAgeAppropriate ?? c.ageAppropriate) === false) text += ' The page may not be suitable for the selected age group.';
   return text;

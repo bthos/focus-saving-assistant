@@ -24,7 +24,7 @@ export function buildReasonDetails(
   const details: string[] = [];
   if (reasonCode === 'content-restricted' && c) {
     if (c.category) details.push(`Category: ${c.category}`);
-    if (c.safetyLevel) details.push(`Safety Level: ${c.safetyLevel}`);
+    if (c.safetyLevel) details.push(`Risk Level: ${c.safetyLevel}`);
     if (c.reason) details.push(`Reason: ${c.reason}`);
   } else if (reasonCode === 'restricted' && matchedPattern) {
     details.push(`Matches rule: ${matchedPattern}`);

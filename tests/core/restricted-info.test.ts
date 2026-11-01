@@ -14,7 +14,7 @@ describe('buildReasonDetails (the lines the two duplicated blocks in navigation-
   it('content-restricted: Category, Safety Level and Reason lines, in that order', () => {
     assert.deepEqual(buildReasonDetails('content-restricted', null, c), [
       'Category: Games',
-      'Safety Level: Medium',
+      'Risk Level: Medium',
       'Reason: Gaming portal.',
     ]);
   });
@@ -24,7 +24,7 @@ describe('buildReasonDetails (the lines the two duplicated blocks in navigation-
       'Category: Games',
     ]);
     assert.deepEqual(buildReasonDetails('content-restricted', null, { category: '', safetyLevel: 'High', reason: 'r' }), [
-      'Safety Level: High',
+      'Risk Level: High',
       'Reason: r',
     ]);
   });
@@ -69,7 +69,7 @@ describe('applyExplanationToRestrictedInfo', () => {
       category: 'Games',
       safetyLevel: 'Medium',
       classificationReason: 'Category "Games" is blocked in the settings.',
-      reasonDetails: ['Category: Games', 'Safety Level: Medium', 'Reason: Category "Games" is blocked in the settings.'],
+      reasonDetails: ['Category: Games', 'Risk Level: Medium', 'Reason: Category "Games" is blocked in the settings.'],
       reasonPending: true,
       explanationStatus: 'pending',
       ...overrides,
@@ -93,7 +93,7 @@ describe('applyExplanationToRestrictedInfo', () => {
     assert.equal(out.classificationReason, 'This is a gaming portal.');
     assert.equal(out.suggestedUrl, 'https://www.khanacademy.org/math');
     assert.equal(out.noUrlReason, null);
-    assert.deepEqual(out.reasonDetails, ['Category: Games', 'Safety Level: Medium', 'Reason: This is a gaming portal.']);
+    assert.deepEqual(out.reasonDetails, ['Category: Games', 'Risk Level: Medium', 'Reason: This is a gaming portal.']);
     assert.equal(out.reasonPending, false);
     assert.equal(out.explanationStatus, 'done');
   });

@@ -1,6 +1,6 @@
 /**
  * Stage 1: fast verdict from an OpenRouter Decisions model (POST /api/v1/systemone).
- * The model only judges (educational? age-appropriate? which category? which safety level?);
+ * The model only judges (educational? age-appropriate? which category? which risk level?);
  * pure code in core/ builds the request, validates the answer and maps it to a classification.
  */
 

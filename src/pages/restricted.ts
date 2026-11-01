@@ -263,7 +263,7 @@ async function renderReason(): Promise<void> {
         details.push(`Category: ${info.category}`);
       }
       if (info.safetyLevel) {
-        details.push(`Safety Level: ${info.safetyLevel}`);
+        details.push(`Risk Level: ${info.safetyLevel}`);
       }
       if (info.classificationReason) {
         details.push(`Reason: ${info.classificationReason}`);
@@ -271,7 +271,7 @@ async function renderReason(): Promise<void> {
       if (details.length > 0) {
         reasonText += '\n' + details.join('\n');
       } else {
-        reasonText += '\nSite does not meet the established restrictions for category or safety level';
+        reasonText += '\nSite does not meet the established restrictions for category or risk level';
       }
     }
   } else if (info.reason === 'restricted') {
@@ -389,12 +389,12 @@ async function outsideHoursReasonText(): Promise<string> {
     const result = await chrome.storage.local.get(['settings']);
     const allowed = result.settings?.timeLimits?.allowedHours;
     if (isHour(allowed?.start) && isHour(allowed?.end) && allowed.start !== allowed.end) {
-      return `Outside allowed browsing hours (${formatHour(allowed.start)}–${formatHour(allowed.end)}).\n` +
+      return `Quiet hours (${formatHour(allowed.end)}–${formatHour(allowed.start)}).\n` +
         `Browsing is not available right now. It is available again from ${formatHour(allowed.start)}.`;
     }
   } catch (error) {
-    console.error('Error loading allowed hours:', error);
+    console.error('Error loading quiet hours:', error);
   }
-  return 'Outside allowed browsing hours.\n' +
-    'Browsing is not available right now. Try again during your allowed hours.';
+  return 'Quiet hours.\n' +
+    'Browsing is not available right now. Try again when quiet hours end.';
 }

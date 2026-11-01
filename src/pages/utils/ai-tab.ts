@@ -65,18 +65,18 @@ const REUSE_TEXT = {
 const STATUS_SUFFIX: Record<DecisionModelStatus, string> = {
   recommended: ' · recommended',
   verified: ' · verified with this extension',
-  'not-recommended': ' · works, but not recommended: its safety answers were almost always "Low" in testing',
+  'not-recommended': ' · works, but not recommended: its risk answers were almost always "Low" in testing',
   unverified: ' · not verified yet: press "Test model"',
   incompatible: ' · this model rejects the request and cannot be used',
 };
 
-const NOT_RECOMMENDED_NOTE = 'Works, but not recommended: its safety answers were almost always Low in testing.';
+const NOT_RECOMMENDED_NOTE = 'Works, but not recommended: its risk answers were almost always Low in testing.';
 
 const EXPLANATION_PREVIEW_EXAMPLE = {
   url: 'https://example.com/games',
   title: 'Example Games Page',
   category: 'Games',
-  safetyLevel: 'Medium',
+  riskLevel: 'Medium',
 } as const;
 
 function el<T extends HTMLElement>(id: string): T | null {

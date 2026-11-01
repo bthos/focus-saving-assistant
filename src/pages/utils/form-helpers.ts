@@ -79,7 +79,7 @@ const LIST_UI: Record<ClassificationItemType, {
   warningId: string;
 }> = {
   category: { kind: 'category', max: MAX_CATEGORY_ITEMS, noun: 'categories', countHintId: 'categoryCountHint', warningId: 'categoryLimitWarning' },
-  safetyLevel: { kind: 'safety', max: MAX_SAFETY_LEVEL_ITEMS, noun: 'safety levels', countHintId: 'safetyCountHint', warningId: 'safetyLimitWarning' },
+  safetyLevel: { kind: 'safety', max: MAX_SAFETY_LEVEL_ITEMS, noun: 'risk levels', countHintId: 'safetyCountHint', warningId: 'safetyLimitWarning' },
 };
 
 /**
@@ -100,7 +100,7 @@ function updateClassificationLimitHints(items: ClassificationItem[], itemType: C
 }
 
 /**
- * Render classification item list (categories or safety levels) with Allow/Block toggle
+ * Render classification item list (categories or risk levels) with Allow/Block toggle
  * and an optional description for the decision model
  */
 export function renderClassificationItemList(

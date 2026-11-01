@@ -62,7 +62,7 @@ function buildClassificationDetailsMarkdown(classification: ClassificationResult
 
   let block = `📊 *Classification Details:*\n` +
     `   • Category: ${displayCategory}\n` +
-    `   • Safety Level: ${escapeMarkdown(safetyLevel)}\n` +
+    `   • Risk Level: ${escapeMarkdown(safetyLevel)}\n` +
     `   • Age Appropriate: ${ageAppropriateStatus}\n\n` +
     `   • Educational: ${educationalStatus}\n`;
 
@@ -449,7 +449,7 @@ export async function sendWeeklyReport(settings: Settings, stats: WeeklyStats): 
 }
 
 /**
- * Sends the once-per-quiet-period notice that a site was blocked outside the allowed hours.
+ * Sends the once-per-quiet-period notice that a site was blocked during quiet hours.
  * Hostname only (no path, query or title). Resolves true only if Telegram accepted the message.
  */
 export async function notifyQuietHoursAttempt(
@@ -472,7 +472,7 @@ export async function notifyQuietHoursAttempt(
   const message = `🌙 *Quiet Hours — Access Blocked*\n\n` +
     `👤 *User:* ${userProfile}\n` +
     `🌐 *Site:* \`${host}\`\n` +
-    `⏰ *Allowed hours:* ${formatHour(allowedHours.start)} – ${formatHour(allowedHours.end)}\n\n` +
+    `⏰ *Quiet hours:* ${formatHour(allowedHours.end)} – ${formatHour(allowedHours.start)}\n\n` +
     `Further attempts are blocked without notice until ${formatHour(allowedHours.start)}.\n\n` +
     `🕐 ${formatTimestamp(Date.now())}`;
 

@@ -300,7 +300,7 @@ describe('migrateStoredSettings — two-stage settings (AC4)', () => {
 
   it('the default explanation prompt has the placeholders and no JSON instructions', () => {
     const p = DEFAULT_SETTINGS.aiExplanationPrompt;
-    for (const placeholder of ['{audience}', '{url}', '{title}', '{category}', '{safetyLevel}']) {
+    for (const placeholder of ['{audience}', '{url}', '{title}', '{category}', '{riskLevel}']) {
       assert.ok(p.includes(placeholder), placeholder);
     }
     assert.equal(/json/i.test(p), false);

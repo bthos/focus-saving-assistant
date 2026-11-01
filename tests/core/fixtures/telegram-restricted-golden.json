@@ -27,7 +27,7 @@
           "noUrlReason": null
         }
       },
-      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Non-educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* Fun Games\\_Portal\n🔗 *URL:* https://games.example.com/play?lvl=1\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Games\n   • Safety Level: High\n   • Age Appropriate: No\n\n   • Educational: No\n   • Suggested Educational Resource: https://www.khanacademy.org/math\n\n📝 *Reason:*\nGames site \\(arcade\\) with \\*bold\\* text\n\n🕐 2026-10-31 12:34:56"
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Non-educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or risk level\\)\n\n📄 *Title:* Fun Games\\_Portal\n🔗 *URL:* https://games.example.com/play?lvl=1\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Games\n   • Risk Level: High\n   • Age Appropriate: No\n\n   • Educational: No\n   • Suggested Educational Resource: https://www.khanacademy.org/math\n\n📝 *Reason:*\nGames site \\(arcade\\) with \\*bold\\* text\n\n🕐 2026-10-31 12:34:56"
     },
     {
       "id": "classifiedNoUrl",
@@ -45,7 +45,7 @@
           "noUrlReason": "No educational equivalent"
         }
       },
-      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* Arcade\n🔗 *URL:* https://games.example.com/play\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Social Media\n   • Safety Level: Medium\n   • Age Appropriate: Not specified\n\n   • Educational: Unknown\n   • Suggested Educational Resource: Not specified (No educational equivalent)\n\n📝 *Reason:*\nFeeds\n\n🕐 2026-10-31 12:34:56"
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Access:* 🚫 Blocked — Content restriction \\(category or risk level\\)\n\n📄 *Title:* Arcade\n🔗 *URL:* https://games.example.com/play\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Social Media\n   • Risk Level: Medium\n   • Age Appropriate: Not specified\n\n   • Educational: Unknown\n   • Suggested Educational Resource: Not specified (No educational equivalent)\n\n📝 *Reason:*\nFeeds\n\n🕐 2026-10-31 12:34:56"
     },
     {
       "id": "classifiedEducational",
@@ -64,7 +64,7 @@
           "noUrlReason": "Already educational; no alternate resource suggested."
         }
       },
-      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or safety level\\)\n\n📄 *Title:* _Not specified_\n🔗 *URL:* https://e.example.org/x\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Educational\n   • Safety Level: High\n   • Age Appropriate: Yes\n\n   • Educational: Yes\n   • Suggested Educational Resource: Not specified (Already educational; no alternate resource suggested.)\n\n📝 *Reason:*\nok\n\n🕐 2026-10-31 12:34:56"
+      "text": "🚫 *Site Access Restricted* — *Alex*\n\n*Detection:* Educational content\n*Access:* 🚫 Blocked — Content restriction \\(category or risk level\\)\n\n📄 *Title:* _Not specified_\n🔗 *URL:* https://e.example.org/x\n📝 *Restriction:* content-restricted\n\n📊 *Classification Details:*\n   • Category: Educational\n   • Risk Level: High\n   • Age Appropriate: Yes\n\n   • Educational: Yes\n   • Suggested Educational Resource: Not specified (Already educational; no alternate resource suggested.)\n\n📝 *Reason:*\nok\n\n🕐 2026-10-31 12:34:56"
     },
     {
       "id": "patternTitled",

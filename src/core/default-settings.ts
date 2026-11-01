@@ -38,5 +38,5 @@ export const DEFAULT_SETTINGS: Settings = {
   decisionModel: '',
   aiAudience: 'children',
   enableAIExplanation: true,
-  aiExplanationPrompt: 'A focus-assistant classifier blocked this page for {audience}.\nURL: {url}\nTitle: {title}\nClassification: category "{category}", safety level "{safetyLevel}".\n\nExplain why this page was blocked, then suggest an educational page on a similar topic that suits {audience}.',
+  aiExplanationPrompt: 'A focus-assistant classifier blocked this page for {audience}.\nURL: {url}\nTitle: {title}\nClassification: category "{category}", risk level "{riskLevel}".\n\nExplain why this page was blocked, then suggest an educational page on a similar topic that suits {audience}.',
 };

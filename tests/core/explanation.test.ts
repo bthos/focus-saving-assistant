@@ -135,20 +135,25 @@ describe('planExplanation', () => {
 });
 
 describe('buildExplanationPrompt', () => {
-  const vars = { url: 'https://games.example.com/play', title: 'Play now', audience: 'children aged 6-10', category: 'Games', safetyLevel: 'Medium' };
+  const vars = { url: 'https://games.example.com/play', title: 'Play now', audience: 'children aged 6-10', category: 'Games', riskLevel: 'Medium' };
   const count = (haystack: string, needle: string): number => haystack.split(needle).length - 1;
 
   it('replaces every occurrence of every placeholder', () => {
     const out = buildExplanationPrompt(
-      '{url} | {url} | {title} | {audience} | {audience} | {category} | {safetyLevel} | {safetyLevel}',
+      '{url} | {url} | {title} | {audience} | {audience} | {category} | {riskLevel} | {riskLevel}',
       vars,
     );
     assert.ok(out.startsWith(
       'https://games.example.com/play | https://games.example.com/play | Play now | children aged 6-10 | children aged 6-10 | Games | Medium | Medium',
     ), out);
-    for (const p of ['{url}', '{title}', '{audience}', '{category}', '{safetyLevel}']) {
+    for (const p of ['{url}', '{title}', '{audience}', '{category}', '{riskLevel}']) {
       assert.equal(out.includes(p), false, p);
     }
+  });
+
+  it('{safetyLevel}, the former name of {riskLevel}, still works in saved prompts', () => {
+    const out = buildExplanationPrompt('Level: {safetyLevel} / {riskLevel}', vars);
+    assert.ok(out.startsWith('Level: Medium / Medium\n\n'), out);
   });
 
   it('inserts a hostile title literally: $& $1 $$ and {url} stay as typed and are not substituted again', () => {

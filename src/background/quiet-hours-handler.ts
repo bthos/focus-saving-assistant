@@ -1,5 +1,5 @@
 /**
- * Quiet hours enforcement: outside the allowed hours every http(s) page is redirected to the
+ * Quiet hours enforcement: during quiet hours every http(s) page is redirected to the
  * restricted page (reason `outside-hours`). No exemptions, no classification lookup, no history
  * entry and no `restricted` notification: quiet-hours blocks must not mark URLs as restricted.
  * All decisions come from src/core/quiet-hours.ts; this module only does the I/O around them.

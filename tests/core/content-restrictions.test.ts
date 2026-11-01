@@ -45,7 +45,7 @@ describe('matchesContentRestrictions', () => {
     assert.equal(matchesContentRestrictions(cls({ category: 'Games', safetyLevel: 'High' }), [], []), false);
   });
 
-  it('a missing category or safety level never matches', () => {
+  it('a missing category or risk level never matches', () => {
     assert.equal(matchesContentRestrictions(cls({ category: '', safetyLevel: null }), ['Games'], ['High']), false);
     assert.equal(matchesContentRestrictions(cls({ safetyLevel: undefined }), [], ['']), false);
   });
@@ -63,8 +63,8 @@ describe('matchesContentRestrictions', () => {
       assert.equal(matchesContentRestrictions(cls({ category: 'Other', safetyLevel: 'Unknown' }), defaultCategories, defaultLevels), false);
     });
 
-    it('Unknown blocks once that item is marked restricted', () => {
-      const levels = DEFAULT_SAFETY_LEVEL_ITEMS.map((i) => ({ ...i, restricted: i.restricted || i.name === 'Unknown' }));
+    it('Unknown blocks once a saved list has that item marked restricted', () => {
+      const levels = [...DEFAULT_SAFETY_LEVEL_ITEMS, { name: 'Unknown', restricted: true }];
       assert.equal(
         matchesContentRestrictions(cls({ category: 'Other', safetyLevel: 'Unknown' }), defaultCategories, restrictedNames(levels)),
         true,
@@ -93,14 +93,14 @@ describe('synthesizeReason', () => {
   it('safety level only', () => {
     assert.equal(
       synthesizeReason({ category: 'News', safetyLevel: 'High' }, lists),
-      'Safety level "High" is blocked in the settings.',
+      'Risk level "High" is blocked in the settings.',
     );
   });
 
   it('both: both sentences, category first', () => {
     assert.equal(
       synthesizeReason({ category: 'Games', safetyLevel: 'High' }, lists),
-      'Category "Games" is blocked in the settings. Safety level "High" is blocked in the settings.',
+      'Category "Games" is blocked in the settings. Risk level "High" is blocked in the settings.',
     );
   });
 
@@ -118,7 +118,7 @@ describe('synthesizeReason', () => {
     );
     assert.equal(
       synthesizeReason({ category: 'Games', safetyLevel: 'High', isAgeAppropriate: false }, lists),
-      'Category "Games" is blocked in the settings. Safety level "High" is blocked in the settings. The page may not be suitable for the selected age group.',
+      'Category "Games" is blocked in the settings. Risk level "High" is blocked in the settings. The page may not be suitable for the selected age group.',
     );
   });
 
@@ -132,11 +132,11 @@ describe('synthesizeReason', () => {
   it('not blocked -> a neutral classified-as sentence (no age suffix)', () => {
     assert.equal(
       synthesizeReason({ category: 'News', safetyLevel: 'Low' }, lists),
-      'Classified as News (safety level: Low).',
+      'Classified as News (risk level: Low).',
     );
     assert.equal(
       synthesizeReason({ category: 'News', safetyLevel: 'Low', isAgeAppropriate: false }, lists),
-      'Classified as News (safety level: Low).',
+      'Classified as News (risk level: Low).',
     );
   });
 

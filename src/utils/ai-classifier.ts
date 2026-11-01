@@ -18,7 +18,7 @@ const GITHUB_MODELS_API_BASE = 'https://models.github.ai';
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 
 /**
- * Builds system prompt with category and safety level constraints.
+ * Builds system prompt with category and risk level constraints.
  * Model must return ONLY values from the provided lists.
  */
 function buildSystemPrompt(availableCategories: string[], availableSafetyLevels: string[]): string {
@@ -29,12 +29,15 @@ function buildSystemPrompt(availableCategories: string[], availableSafetyLevels:
   const levelsList =
     availableSafetyLevels.length > 0
       ? availableSafetyLevels.join(', ')
-      : 'Low, Medium, High, Unknown';
+      : 'Low, Medium, High';
 
+  const unsureLevelRule = levelsList.split(', ').includes('Unknown')
+    ? '"Unknown" for safetyLevel'
+    : 'the more cautious (higher risk) item for safetyLevel';
   return (
     `Return JSON: {isEducational: boolean, suggestedUrl: string, noUrlReason: string, category: string, isAgeAppropriate: boolean, safetyLevel: string, reason: string}\n\n` +
     `CRITICAL: category MUST be exactly one of: ${categoriesList}. safetyLevel MUST be exactly one of: ${levelsList}. ` +
-    `Do not invent values; use only from these lists. If unsure, use "Other" for category and "Unknown" for safetyLevel.\n` +
+    `Do not invent values; use only from these lists. If unsure, use "Other" for category and ${unsureLevelRule}.\n` +
     `When category is Educational, suggestedUrl MUST be null (do not suggest a different educational resource).`
   );
 }
@@ -231,7 +234,7 @@ export async function classifyContent(
     userPrompt = userPrompt.replace(/{title}/g, () => title || 'No title');
     userPrompt = userPrompt.replace(/{audience}/g, () => settings.aiAudience);
 
-    // Build system prompt with category/safety level lists from settings
+    // Build system prompt with category/risk level lists from settings
     const availableCategories = settings.availableCategories || [];
     const availableSafetyLevels = settings.availableSafetyLevels || [];
     const systemPrompt = buildSystemPrompt(availableCategories, availableSafetyLevels);
@@ -322,7 +325,7 @@ export async function explainBlock(
     title: sanitizeDecisionTitle(classification.title),
     audience: settings.aiAudience,
     category: classification.category,
-    safetyLevel: classification.safetyLevel || 'Unknown',
+    riskLevel: classification.safetyLevel || 'Unknown',
   });
 
   try {
