@@ -231,6 +231,24 @@ describe('block page: Stage 2 result matches the blocked URL as stored, whatever
   }
 });
 
+describe('block page: the automatic reason waits for the explanation', () => {
+  const url = 'https://www.amazon.com/s?k=lego%20set';
+
+  it('pending: category and risk level show, the automatic reason does not; after the 30 s timeout it does', async () => {
+    const page = await openPage(pendingSearch(url), pendingBlock(url));
+    assert.match(page.text('reasonDetails'), /Category: Shopping/);
+    assert.match(page.text('reasonDetails'), /Risk Level: Medium/);
+    assert.doesNotMatch(page.text('reasonDetails'), /Reason:/);
+    await page.runTimers(PENDING_UI_TIMEOUT_MS);
+    assert.match(page.text('reasonDetails'), new RegExp(`Reason: ${SYNTHESIZED}`));
+  });
+
+  it('no stored block (query seed only): the automatic reason is hidden while pending too', async () => {
+    const page = await openPage(pendingSearch(url), null);
+    assert.doesNotMatch(page.text('reasonDetails'), /Reason:/);
+  });
+});
+
 describe('block page: a result for a different URL never applies', () => {
   const url = 'https://www.amazon.com/s?k=lego%20set';
 

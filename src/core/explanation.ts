@@ -45,6 +45,12 @@ export function buildExplanationPrompt(template: string, vars: { url: string; ti
   return `${filled}\n\n${FORMAT_BLOCK}`;
 }
 
+/** Tries per explanation: a router (`openrouter/free`, `openrouter/auto`) draws a different model each request, so an unusable reply is retried; a fixed model answers the same way again. */
+export const EXPLANATION_ROUTER_ATTEMPTS = 3;
+export function explanationAttempts(provider: string | undefined, model: string | undefined): number {
+  return provider === 'openrouter' && (model ?? '').trim().toLowerCase().startsWith('openrouter/') ? EXPLANATION_ROUTER_ATTEMPTS : 1;
+}
+
 const CONTROL_ALL = /[\u0000-\u001f\u007f-\u009f]/g;
 const cleanText = (s: string): string => s.replace(/[\t\n\r]/g, ' ').replace(CONTROL_ALL, '').trim();
 

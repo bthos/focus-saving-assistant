@@ -2,9 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  EXPLANATION_ROUTER_ATTEMPTS,
   EXPLANATION_STALE_PENDING_MS,
   applyExplanation,
   buildExplanationPrompt,
+  explanationAttempts,
   parseExplanationReply,
   planExplanation,
   tryClaimExplanation,
@@ -521,5 +523,15 @@ describe('claim and notice state transitions', () => {
     const ref: TelegramNoticeRef = { chatId: '1', messageId: 2, keyboardUrl: 'https://a.org/', finalized: false, text: 't', fallbackText: 'f' };
     const out = withNoticeFinalized(decisionResult({ generative: { status: 'done', attemptedAt: 5, telegram: ref } }));
     assert.deepEqual(out.generative?.telegram, { chatId: '1', messageId: 2, keyboardUrl: 'https://a.org/', finalized: true });
+  });
+});
+
+describe('explanationAttempts', () => {
+  it('retries only on an OpenRouter router model', () => {
+    assert.equal(explanationAttempts('openrouter', 'openrouter/free'), EXPLANATION_ROUTER_ATTEMPTS);
+    assert.equal(explanationAttempts('openrouter', ' OpenRouter/Auto '), EXPLANATION_ROUTER_ATTEMPTS);
+    assert.equal(explanationAttempts('openrouter', 'openai/gpt-4'), 1);
+    assert.equal(explanationAttempts('github', 'openrouter/free'), 1);
+    assert.equal(explanationAttempts(undefined, undefined), 1);
   });
 });

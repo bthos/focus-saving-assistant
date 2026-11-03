@@ -251,11 +251,14 @@ async function renderReason(): Promise<void> {
   if (!info || !info.reason || !reasonInfoEl || !reasonDetailsEl) return;
 
   let reasonText = '';
+  // The automatic reason is not shown while the model's explanation is awaited; it appears if that fails.
+  const hideAutoReason = viewState === 'pending';
 
   if (info.reason === 'content-restricted') {
     reasonText = 'Content blocked based on classification:';
     if (info.reasonDetails && Array.isArray(info.reasonDetails)) {
-      reasonText += '\n' + info.reasonDetails.join('\n');
+      const lines = hideAutoReason ? info.reasonDetails.filter((line) => !line.startsWith('Reason:')) : info.reasonDetails;
+      reasonText += '\n' + lines.join('\n');
     } else {
       // Build from individual fields
       const details: string[] = [];
@@ -265,7 +268,7 @@ async function renderReason(): Promise<void> {
       if (info.safetyLevel) {
         details.push(`Risk Level: ${info.safetyLevel}`);
       }
-      if (info.classificationReason) {
+      if (info.classificationReason && !hideAutoReason) {
         details.push(`Reason: ${info.classificationReason}`);
       }
       if (details.length > 0) {

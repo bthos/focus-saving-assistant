@@ -12,7 +12,7 @@ import { resolveAiMode } from '../core/ai-mode.ts';
 import { prefixStageError, type AiStage } from '../core/ai-errors.ts';
 import { sanitizeDecisionTitle, sanitizeDecisionUrl } from '../core/decision-request.ts';
 import { buildErrorClassification } from '../core/decision-response.ts';
-import { buildExplanationPrompt, parseExplanationReply, type ExplanationReply } from '../core/explanation.ts';
+import { buildExplanationPrompt, explanationAttempts, parseExplanationReply, type ExplanationReply } from '../core/explanation.ts';
 
 const GITHUB_MODELS_API_BASE = 'https://models.github.ai';
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
@@ -49,6 +49,11 @@ export interface ChatCompletionOptions {
   stage?: AiStage;
   /** Page URL, for the system log only. */
   logUrl?: string;
+  /**
+   * Asks OpenRouter for a JSON object (`response_format`). On a router such as `openrouter/free` this also
+   * narrows the random pick to models that support structured output; GitHub Models ignores the option.
+   */
+  jsonResponse?: boolean;
 }
 
 /** The parts of a chat-completions response body this extension reads (GitHub Models and OpenRouter share them). */
@@ -74,7 +79,7 @@ export async function callChatCompletion(
   prompt: string,
   options: ChatCompletionOptions = {}
 ): Promise<ChatCompletionResult> {
-  const { signal, stage, logUrl = '' } = options;
+  const { signal, stage, logUrl = '', jsonResponse = false } = options;
   const provider = settings.aiProvider || 'github';
   const model = settings.aiModel || 'gpt-4';
   let response: Response;
@@ -99,7 +104,8 @@ export async function callChatCompletion(
           }
         ],
         temperature: 0.3,
-        max_tokens: 1000
+        max_tokens: 1000,
+        ...(jsonResponse ? { response_format: { type: 'json_object' } } : {})
       }),
       signal
     });
@@ -328,27 +334,33 @@ export async function explainBlock(
     riskLevel: classification.safetyLevel || 'Unknown',
   });
 
-  try {
-    const { content, model } = await callChatCompletion(settings, prompt, {
-      signal: options.signal,
-      stage: 'explanation',
-      logUrl: url,
-    });
-    const parsed = parseExplanationReply(content);
-    if (!parsed.ok) {
-      const error = `Explanation reply could not be used (${parsed.code})`;
-      await addSystemLog('ai', error, `Model: ${model}, URL: ${url}\nResponse: ${content.substring(0, 500)}`);
-      return { status: 'failed', error };
+  const attempts = explanationAttempts(settings.aiProvider, settings.aiModel);
+  let lastError = 'Explanation failed';
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const { content, model } = await callChatCompletion(settings, prompt, {
+        signal: options.signal,
+        stage: 'explanation',
+        logUrl: url,
+        jsonResponse: true,
+      });
+      const parsed = parseExplanationReply(content);
+      if (parsed.ok) {
+        return {
+          status: 'done',
+          reply: { reason: parsed.reason, suggestedUrl: parsed.suggestedUrl, noUrlReason: parsed.noUrlReason },
+          model,
+        };
+      }
+      lastError = `Explanation reply could not be used (${parsed.code})`;
+      await addSystemLog('ai', lastError, `Model: ${model}, URL: ${url}, attempt ${attempt} of ${attempts}\nResponse: ${content.substring(0, 500)}`);
+      // A router picks another model on the next request, so an unusable reply is worth one more try.
+    } catch (error) {
+      const aborted = options.signal?.aborted === true;
+      const failure = aborted ? 'Explanation timed out' : error instanceof Error ? error.message : String(error);
+      await addSystemLog('ai', `Explanation failed: ${failure}`, `URL: ${url}`);
+      return { status: 'failed', error: failure };
     }
-    return {
-      status: 'done',
-      reply: { reason: parsed.reason, suggestedUrl: parsed.suggestedUrl, noUrlReason: parsed.noUrlReason },
-      model,
-    };
-  } catch (error) {
-    const aborted = options.signal?.aborted === true;
-    const failure = aborted ? 'Explanation timed out' : error instanceof Error ? error.message : String(error);
-    await addSystemLog('ai', `Explanation failed: ${failure}`, `URL: ${url}`);
-    return { status: 'failed', error: failure };
   }
+  return { status: 'failed', error: lastError };
 }
